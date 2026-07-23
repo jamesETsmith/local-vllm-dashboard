@@ -1,0 +1,80 @@
+{
+  "schema_version": "v1",
+  "bundle_id": "018f4d6a-4c1f-7c7a-98cf-3b5c7cef3d1a",
+  "idempotency_key": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "run": {
+    "started_at": "2026-07-23T14:01:02Z",
+    "completed_at": "2026-07-23T14:16:48Z",
+    "status": "completed",
+    "runner": {
+      "kind": "buildkite",
+      "run_id": "build-42",
+      "url": "https://buildkite.example/builds/42"
+    },
+    "source": {
+      "kind": "perf-eval",
+      "revision": "0123456789abcdef",
+      "artifacts": [
+        {
+          "path": "results/example/bench-1k-in-1k-out-conc-256.json",
+          "role": "raw_bench_result",
+          "size_bytes": 4096,
+          "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ]
+    },
+    "vllm": {
+      "commit": "abcdef1234567890",
+      "image": "vllm/vllm-openai:nightly-abcdef"
+    }
+  },
+  "workload": {
+    "name": "qwen3_5-h200",
+    "recipe_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "model": "Qwen/Qwen3.5-397B-A17B-FP8",
+    "reference": "workloads/qwen3_5_h200.yaml"
+  },
+  "environment": {
+    "accelerator": "H200",
+    "accelerator_count": 8,
+    "precision": "fp8",
+    "tensor_parallel_size": 8
+  },
+  "observations": [
+    {
+      "observation_id": "bench:1k-in-1k-out-conc-256",
+      "kind": "performance",
+      "subject": {
+        "model": "Qwen/Qwen3.5-397B-A17B-FP8"
+      },
+      "configuration": {
+        "input_tokens": 1024,
+        "output_tokens": 1024,
+        "max_concurrency": 256,
+        "dataset": "random",
+        "backend": "openai"
+      },
+      "metrics": [
+        {
+          "name": "total_token_throughput",
+          "value": 1234.5,
+          "unit": "token/s",
+          "aggregation": "run"
+        },
+        {
+          "name": "mean_ttft",
+          "value": 0.091,
+          "unit": "s",
+          "aggregation": "mean"
+        }
+      ],
+      "source": {
+        "adapter": "perf-eval",
+        "adapter_version": "0.1.0"
+      }
+    }
+  ],
+  "labels": {
+    "branch": "main"
+  }
+}

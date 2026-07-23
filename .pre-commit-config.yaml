@@ -36,6 +36,12 @@ repos:
         entry: uv run bandit -c pyproject.toml
         language: system
         types: [python]
+      - id: pytest
+        name: pytest
+        entry: uv run pytest
+        language: system
+        types_or: [python, json]
+        pass_filenames: false
       - id: detect-secrets
         name: detect secrets
         entry: uv run detect-secrets-hook --baseline .secrets.baseline

@@ -1,0 +1,567 @@
+{
+  "$defs": {
+    "ArtifactRole": {
+      "enum": [
+        "raw_bench_result",
+        "accuracy_result",
+        "accuracy_samples",
+        "function_calling_result",
+        "workload_recipe"
+      ],
+      "title": "ArtifactRole",
+      "type": "string"
+    },
+    "Environment": {
+      "additionalProperties": false,
+      "properties": {
+        "accelerator": {
+          "minLength": 1,
+          "title": "Accelerator",
+          "type": "string"
+        },
+        "accelerator_count": {
+          "exclusiveMinimum": 0,
+          "title": "Accelerator Count",
+          "type": "integer"
+        },
+        "data_parallel_size": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Parallel Size"
+        },
+        "extensions": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Extensions",
+          "type": "object"
+        },
+        "precision": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Precision"
+        },
+        "tensor_parallel_size": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tensor Parallel Size"
+        },
+        "topology": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Topology"
+        }
+      },
+      "required": [
+        "accelerator",
+        "accelerator_count"
+      ],
+      "title": "Environment",
+      "type": "object"
+    },
+    "JsonValue": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "integer"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "items": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "array"
+        },
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "Metric": {
+      "additionalProperties": false,
+      "properties": {
+        "aggregation": {
+          "$ref": "#/$defs/MetricAggregation"
+        },
+        "name": {
+          "$ref": "#/$defs/MetricName"
+        },
+        "unit": {
+          "$ref": "#/$defs/MetricUnit"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "name",
+        "value",
+        "unit",
+        "aggregation"
+      ],
+      "title": "Metric",
+      "type": "object"
+    },
+    "MetricAggregation": {
+      "enum": [
+        "run",
+        "mean",
+        "median",
+        "p99",
+        "standard_error"
+      ],
+      "title": "MetricAggregation",
+      "type": "string"
+    },
+    "MetricName": {
+      "enum": [
+        "request_throughput",
+        "input_token_throughput",
+        "output_token_throughput",
+        "total_token_throughput",
+        "mean_ttft",
+        "median_ttft",
+        "p99_ttft",
+        "mean_tpot",
+        "median_tpot",
+        "p99_tpot",
+        "mean_itl",
+        "median_itl",
+        "p99_itl",
+        "mean_e2el",
+        "median_e2el",
+        "p99_e2el",
+        "accuracy",
+        "exact_match",
+        "accuracy_normalized",
+        "standard_error"
+      ],
+      "title": "MetricName",
+      "type": "string"
+    },
+    "MetricUnit": {
+      "enum": [
+        "1",
+        "%",
+        "request/s",
+        "token/s",
+        "s"
+      ],
+      "title": "MetricUnit",
+      "type": "string"
+    },
+    "Observation": {
+      "additionalProperties": false,
+      "properties": {
+        "configuration": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Configuration",
+          "type": "object"
+        },
+        "kind": {
+          "$ref": "#/$defs/ObservationKind"
+        },
+        "metrics": {
+          "items": {
+            "$ref": "#/$defs/Metric"
+          },
+          "minItems": 1,
+          "title": "Metrics",
+          "type": "array"
+        },
+        "observation_id": {
+          "minLength": 1,
+          "title": "Observation Id",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/ObservationSource"
+        },
+        "subject": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Subject",
+          "type": "object"
+        }
+      },
+      "required": [
+        "observation_id",
+        "kind",
+        "subject",
+        "configuration",
+        "metrics",
+        "source"
+      ],
+      "title": "Observation",
+      "type": "object"
+    },
+    "ObservationKind": {
+      "enum": [
+        "performance",
+        "accuracy",
+        "function_calling"
+      ],
+      "title": "ObservationKind",
+      "type": "string"
+    },
+    "ObservationSource": {
+      "additionalProperties": false,
+      "properties": {
+        "adapter": {
+          "const": "perf-eval",
+          "title": "Adapter",
+          "type": "string"
+        },
+        "adapter_version": {
+          "minLength": 1,
+          "title": "Adapter Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "adapter",
+        "adapter_version"
+      ],
+      "title": "ObservationSource",
+      "type": "object"
+    },
+    "RawArtifactProvenance": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Digest",
+          "type": "string"
+        },
+        "path": {
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/ArtifactRole"
+        },
+        "size_bytes": {
+          "minimum": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "path",
+        "role",
+        "size_bytes",
+        "digest"
+      ],
+      "title": "RawArtifactProvenance",
+      "type": "object"
+    },
+    "Run": {
+      "additionalProperties": false,
+      "properties": {
+        "completed_at": {
+          "format": "date-time",
+          "title": "Completed At",
+          "type": "string"
+        },
+        "runner": {
+          "$ref": "#/$defs/Runner"
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        },
+        "started_at": {
+          "format": "date-time",
+          "title": "Started At",
+          "type": "string"
+        },
+        "status": {
+          "const": "completed",
+          "title": "Status",
+          "type": "string"
+        },
+        "vllm": {
+          "$ref": "#/$defs/Vllm"
+        }
+      },
+      "required": [
+        "started_at",
+        "completed_at",
+        "status",
+        "runner",
+        "source",
+        "vllm"
+      ],
+      "title": "Run",
+      "type": "object"
+    },
+    "Runner": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "minLength": 1,
+          "title": "Kind",
+          "type": "string"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "Runner",
+      "type": "object"
+    },
+    "Source": {
+      "additionalProperties": false,
+      "properties": {
+        "artifacts": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/RawArtifactProvenance"
+          },
+          "title": "Artifacts",
+          "type": "array"
+        },
+        "extensions": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Extensions",
+          "type": "object"
+        },
+        "kind": {
+          "const": "perf-eval",
+          "title": "Kind",
+          "type": "string"
+        },
+        "revision": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Revision"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "Source",
+      "type": "object"
+    },
+    "Vllm": {
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Commit"
+        },
+        "image": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Image"
+        }
+      },
+      "title": "Vllm",
+      "type": "object"
+    },
+    "Workload": {
+      "additionalProperties": false,
+      "properties": {
+        "extensions": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Extensions",
+          "type": "object"
+        },
+        "model": {
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "recipe_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Recipe Digest",
+          "type": "string"
+        },
+        "reference": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reference"
+        }
+      },
+      "required": [
+        "name",
+        "recipe_digest",
+        "model"
+      ],
+      "title": "Workload",
+      "type": "object"
+    }
+  },
+  "$id": "urn:local-vllm-dashboard:contracts:bundle:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "bundle_id": {
+      "format": "uuid",
+      "title": "Bundle Id",
+      "type": "string"
+    },
+    "environment": {
+      "$ref": "#/$defs/Environment"
+    },
+    "idempotency_key": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Idempotency Key",
+      "type": "string"
+    },
+    "labels": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Labels",
+      "type": "object"
+    },
+    "observations": {
+      "items": {
+        "$ref": "#/$defs/Observation"
+      },
+      "minItems": 1,
+      "title": "Observations",
+      "type": "array"
+    },
+    "run": {
+      "$ref": "#/$defs/Run"
+    },
+    "schema_version": {
+      "const": "v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "workload": {
+      "$ref": "#/$defs/Workload"
+    }
+  },
+  "required": [
+    "schema_version",
+    "bundle_id",
+    "idempotency_key",
+    "run",
+    "workload",
+    "environment",
+    "observations"
+  ],
+  "title": "Bundle",
+  "type": "object"
+}
