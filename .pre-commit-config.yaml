@@ -1,0 +1,50 @@
+default_install_hook_types: [pre-commit, pre-push]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+      - id: trailing-whitespace
+
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff lint
+        entry: uv run ruff check --fix
+        language: system
+        types_or: [python, pyi]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format
+        language: system
+        types_or: [python, pyi]
+      - id: ty
+        name: ty type check
+        entry: uv run ty check
+        language: system
+        types_or: [python, pyi]
+        pass_filenames: false
+      - id: bandit
+        name: bandit security scan
+        entry: uv run bandit -c pyproject.toml
+        language: system
+        types: [python]
+      - id: detect-secrets
+        name: detect secrets
+        entry: uv run detect-secrets-hook --baseline .secrets.baseline
+        language: system
+        exclude: ^(\.secrets\.baseline|uv\.lock)$
+
+      - id: pip-audit
+        name: dependency vulnerability audit
+        entry: uv run pip-audit
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
