@@ -21,10 +21,12 @@ def test_build_performance_bundle_from_real_shape() -> None:
     assert bundle.observations[0].configuration["failed"] == 39
     metrics = {metric.name: metric for metric in bundle.observations[0].metrics}
     assert metrics[MetricName.MEAN_TTFT].value == 0.24936232599429786
-    assert metrics[MetricName.TOTAL_TOKEN_THROUGHPUT].value == 739.15939605178
-    assert metrics[MetricName.TOTAL_TOKEN_THROUGHPUT].unit == "token/s/gpu"
-    assert metrics[MetricName.REQUEST_THROUGHPUT].value == 0.014782596617170914
-    assert metrics[MetricName.REQUEST_THROUGHPUT].unit == "request/s/gpu"
+    total = metrics[MetricName.TOTAL_TOKEN_THROUGHPUT_PER_GPU]
+    requests = metrics[MetricName.REQUEST_THROUGHPUT_PER_GPU]
+    assert total.value == 739.15939605178
+    assert total.unit == "token/s/gpu"
+    assert requests.value == 0.014782596617170914
+    assert requests.unit == "request/s/gpu"
 
 
 def test_bundle_generation_is_deterministic_for_fixed_bundle_id() -> None:

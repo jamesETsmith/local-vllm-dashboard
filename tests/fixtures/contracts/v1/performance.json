@@ -56,9 +56,9 @@
       },
       "metrics": [
         {
-          "name": "total_token_throughput",
+          "name": "total_token_throughput_per_gpu",
           "value": 1234.5,
-          "unit": "token/s",
+          "unit": "token/s/gpu",
           "aggregation": "run"
         },
         {

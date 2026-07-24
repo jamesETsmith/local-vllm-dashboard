@@ -43,9 +43,9 @@ LATENCY_METRICS = {
     "p99_e2el_ms": (MetricName.P99_E2EL, MetricAggregation.P99),
 }
 THROUGHPUT_METRICS = {
-    "request_throughput": MetricName.REQUEST_THROUGHPUT,
-    "output_throughput": MetricName.OUTPUT_TOKEN_THROUGHPUT,
-    "total_token_throughput": MetricName.TOTAL_TOKEN_THROUGHPUT,
+    "request_throughput": MetricName.REQUEST_THROUGHPUT_PER_GPU,
+    "output_throughput": MetricName.OUTPUT_TOKEN_THROUGHPUT_PER_GPU,
+    "total_token_throughput": MetricName.TOTAL_TOKEN_THROUGHPUT_PER_GPU,
 }
 
 
