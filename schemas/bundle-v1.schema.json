@@ -163,10 +163,10 @@
     },
     "MetricName": {
       "enum": [
-        "request_throughput",
-        "input_token_throughput",
-        "output_token_throughput",
-        "total_token_throughput",
+        "request_throughput_per_gpu",
+        "input_token_throughput_per_gpu",
+        "output_token_throughput_per_gpu",
+        "total_token_throughput_per_gpu",
         "mean_ttft",
         "median_ttft",
         "p99_ttft",

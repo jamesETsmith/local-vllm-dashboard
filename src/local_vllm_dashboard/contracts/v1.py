@@ -25,10 +25,10 @@ class ObservationKind(StrEnum):
 
 
 class MetricName(StrEnum):
-    REQUEST_THROUGHPUT = "request_throughput"
-    INPUT_TOKEN_THROUGHPUT = "input_token_throughput"
-    OUTPUT_TOKEN_THROUGHPUT = "output_token_throughput"
-    TOTAL_TOKEN_THROUGHPUT = "total_token_throughput"
+    REQUEST_THROUGHPUT_PER_GPU = "request_throughput_per_gpu"
+    INPUT_TOKEN_THROUGHPUT_PER_GPU = "input_token_throughput_per_gpu"
+    OUTPUT_TOKEN_THROUGHPUT_PER_GPU = "output_token_throughput_per_gpu"
+    TOTAL_TOKEN_THROUGHPUT_PER_GPU = "total_token_throughput_per_gpu"
     MEAN_TTFT = "mean_ttft"
     MEDIAN_TTFT = "median_ttft"
     P99_TTFT = "p99_ttft"
@@ -173,7 +173,7 @@ class Bundle(ContractModel):
         return self
 
     def canonical_json(self, *, include_idempotency_key: bool = True) -> bytes:
-        excluded = set() if include_idempotency_key else {"idempotency_key"}
+        excluded = set() if include_idempotency_key else {"bundle_id", "idempotency_key"}
         data: dict[str, Any] = self.model_dump(mode="json", exclude=excluded)
         return json.dumps(
             data,

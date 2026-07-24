@@ -1,0 +1,13 @@
+{
+  "results": {
+    "gsm8k": {
+      "exact_match": 0.742,
+      "exact_match_stderr": 0.012
+    }
+  },
+  "configs": {
+    "gsm8k": {
+      "num_fewshot": 5
+    }
+  }
+}
