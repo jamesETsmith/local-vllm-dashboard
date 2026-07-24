@@ -1,24 +1,14 @@
-name: glm_5_2_mxfp4-mi355x-from-b300-no-profile
+name: prefix-cache-performance-mi355x
 gpu: MI355X
 num_gpus: 4
 nightly: false
 
 vllm:
-  model: amd/GLM-5.2-MXFP4
-  image: vllm-openai-rocm:v0.25.1-aiter-latest
-  env:
-    VLLM_ROCM_USE_AITER: 1
-    VLLM_ROCM_USE_AITER_FP8BMM: 0
-    VLLM_ROCM_USE_AITER_FP4BMM: 0
-    AITER_ONLINE_TUNE: 1
-    VLLM_ROCM_USE_AITER_FUSION_SHARED_EXPERTS: 1
+  model: example-org/example-model
+  image: example-registry/vllm-openai:test
   serve_args: >-
     --tensor-parallel-size 4
-    --quantization quark
     --trust-remote-code
-    --reasoning-parser glm45
-    --tool-call-parser glm47
-    --enable-auto-tool-choice
     --kv-cache-dtype fp8
     --enable-prefix-caching
     --max-model-len 65536
@@ -28,7 +18,7 @@ vllm_bench:
   metadata:
     device: mi355x
     tp: 4
-    precision: mxfp4
+    precision: quantized
     workload: 50k-in-1k-out-40k-cached
   configs:
     - name: 50k-in-1k-out-40k-cached-conc-4
