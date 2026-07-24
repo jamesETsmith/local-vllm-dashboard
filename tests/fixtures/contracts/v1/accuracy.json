@@ -1,0 +1,70 @@
+{
+  "schema_version": "v1",
+  "bundle_id": "018f4d6a-4c1f-7c7a-98cf-3b5c7cef3d1b",
+  "idempotency_key": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "run": {
+    "started_at": "2026-07-23T15:01:02Z",
+    "completed_at": "2026-07-23T15:16:48Z",
+    "status": "completed",
+    "runner": {
+      "kind": "local",
+      "run_id": "accuracy-1"
+    },
+    "source": {
+      "kind": "perf-eval",
+      "artifacts": [
+        {
+          "path": "results/example/gsm8k/results_2026-07-23T15-16-48.json",
+          "role": "accuracy_result",
+          "size_bytes": 8192,
+          "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        }
+      ]
+    },
+    "vllm": {
+      "image": "vllm/vllm-openai:latest"
+    }
+  },
+  "workload": {
+    "name": "example-accuracy",
+    "recipe_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "model": "example/model"
+  },
+  "environment": {
+    "accelerator": "H200",
+    "accelerator_count": 1
+  },
+  "observations": [
+    {
+      "observation_id": "lm-eval:gsm8k",
+      "kind": "accuracy",
+      "subject": {
+        "model": "example/model",
+        "task": "gsm8k"
+      },
+      "configuration": {
+        "num_fewshot": 5,
+        "partial": false
+      },
+      "metrics": [
+        {
+          "name": "exact_match",
+          "value": 0.742,
+          "unit": "1",
+          "aggregation": "mean"
+        },
+        {
+          "name": "standard_error",
+          "value": 0.012,
+          "unit": "1",
+          "aggregation": "standard_error"
+        }
+      ],
+      "source": {
+        "adapter": "perf-eval",
+        "adapter_version": "0.1.0"
+      }
+    }
+  ],
+  "labels": {}
+}

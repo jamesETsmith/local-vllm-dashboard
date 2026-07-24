@@ -1,0 +1,38 @@
+name: prefix-cache-performance-mi355x
+gpu: MI355X
+num_gpus: 4
+nightly: false
+
+vllm:
+  model: example-org/example-model
+  image: example-registry/vllm-openai:test
+  serve_args: >-
+    --tensor-parallel-size 4
+    --trust-remote-code
+    --kv-cache-dtype fp8
+    --enable-prefix-caching
+    --max-model-len 65536
+    --gpu-memory-utilization 0.95
+
+vllm_bench:
+  metadata:
+    device: mi355x
+    tp: 4
+    precision: quantized
+    workload: 50k-in-1k-out-40k-cached
+  configs:
+    - name: 50k-in-1k-out-40k-cached-conc-4
+      backend: openai
+      dataset: prefix_repetition
+      input_len: 50000
+      output_len: 1000
+      num_prompts: 40
+      max_concurrency: 4
+      args:
+        num_warmups: 32
+        percentile_metrics: ttft,tpot,itl,e2el
+        prefix_repetition_num_prefixes: 1
+        prefix_repetition_prefix_len: 40000
+        prefix_repetition_suffix_len: 10000
+        prefix_repetition_output_len: 1000
+        disable_tqdm: true
