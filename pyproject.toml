@@ -3,7 +3,6 @@ name = "local-vllm-dashboard"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
-    "alembic>=1.16.0,<2",
     "fastapi>=0.116.0,<1",
     "httpx>=0.28.0,<1",
     "psycopg[binary]>=3.2.0,<4",
@@ -22,6 +21,7 @@ dev = [
     "bandit>=1.8.6,<2",
     "detect-secrets>=1.5.0,<2",
     "pip-audit>=2.9.0,<3",
+    "poethepoet>=0.36.0,<1",
     "pre-commit>=4.2.0,<5",
     "pytest>=9.0.3,<10",
     "pytest-cov>=6.2.0,<8",
@@ -31,6 +31,18 @@ dev = [
 
 [tool.uv]
 package = true
+
+[tool.poe.tasks]
+check = ["format-check", "lint", "types", "test"]
+format = "ruff format ."
+format-check = "ruff format --check ."
+lint = "ruff check ."
+types = "ty check"
+test = "pytest"
+security = "bandit -c pyproject.toml -r src scripts"
+up = "docker compose up --build"
+down = "docker compose down"
+reset = "docker compose down --volumes"
 
 [build-system]
 requires = ["uv_build>=0.8.0,<1"]

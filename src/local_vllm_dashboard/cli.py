@@ -2,7 +2,9 @@ import argparse
 from pathlib import Path
 
 from local_vllm_dashboard.adapter import build_performance_bundle
+from local_vllm_dashboard.api import Settings
 from local_vllm_dashboard.contracts import Bundle
+from local_vllm_dashboard.db import initialize_schema, make_engine
 from local_vllm_dashboard.publisher import Publisher
 
 
@@ -23,11 +25,16 @@ def build_parser() -> argparse.ArgumentParser:
     adapt_publish.add_argument("--recipe", type=Path, required=True)
     adapt_publish.add_argument("--result", type=Path, required=True)
     adapt_publish.add_argument("--endpoint", required=True)
+
+    commands.add_parser("init-db")
     return parser
 
 
 def main() -> None:
     args = build_parser().parse_args()
+    if args.command == "init-db":
+        initialize_schema(make_engine(Settings().database_url))
+        return
     if args.command == "adapt-perf":
         bundle = build_performance_bundle(args.recipe, args.result)
         args.output.write_bytes(bundle.canonical_json() + b"\n")

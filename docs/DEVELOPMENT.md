@@ -2,17 +2,25 @@
 
 The architecture and scope are defined in [DESIGN.md](DESIGN.md).
 
+Install dependencies once:
+
 ```text
 uv sync --all-groups
-uv run pytest
-uv run pre-commit run --all-files
 ```
 
-Start PostgreSQL and the one-way ingestion API:
+Run project tasks through the unified interface:
 
 ```text
-docker compose up --build
+uv run poe check
+uv run poe test
+uv run poe format
+uv run poe security
+uv run poe up
+uv run poe down
+uv run poe reset
 ```
+
+`up` starts PostgreSQL, creates the current schema from scratch, and starts the one-way ingestion API. During early development, schema changes are intentionally breaking; use `uv run poe reset` to remove the database volume before restarting.
 
 Create a canonical performance bundle from `perf-eval` files:
 

@@ -5,6 +5,7 @@ from local_vllm_dashboard.db.repository import (
     SaveResult,
     SaveStatus,
 )
+from local_vllm_dashboard.db.schema import initialize_schema
 from local_vllm_dashboard.db.session import make_engine, make_session_factory
 
 __all__ = [
@@ -13,6 +14,7 @@ __all__ = [
     "IdempotencyConflictError",
     "SaveResult",
     "SaveStatus",
+    "initialize_schema",
     "make_engine",
     "make_session_factory",
 ]

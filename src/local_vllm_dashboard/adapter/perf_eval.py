@@ -81,12 +81,14 @@ def find_bench_config(recipe: dict[str, Any], result: dict[str, Any]) -> dict[st
     return matches[0]
 
 
-def performance_metrics(result: dict[str, Any]) -> tuple[Metric, ...]:
+def performance_metrics(result: dict[str, Any], parallelism: int) -> tuple[Metric, ...]:
+    if parallelism < 1:
+        raise ValueError("throughput parallelism must be positive")
     metrics = [
         Metric(
             name=name,
-            value=float(result[field]),
-            unit="request/s" if field == "request_throughput" else "token/s",
+            value=float(result[field]) / parallelism,
+            unit="request/s/gpu" if field == "request_throughput" else "token/s/gpu",
             aggregation=MetricAggregation.RUN,
         )
         for field, name in THROUGHPUT_METRICS.items()
@@ -113,6 +115,7 @@ def build_performance_bundle(
     config = find_bench_config(recipe, result)
     vllm = recipe["vllm"]
     bench_metadata = recipe.get("vllm_bench", {}).get("metadata", {})
+    parallelism = int(bench_metadata["tp"])
     completed_at = parse_result_time(str(result["date"]))
     duration = float(result.get("duration") or 0)
     selected_bundle_id = bundle_id or uuid4()
@@ -156,7 +159,7 @@ def build_performance_bundle(
             accelerator=str(recipe["gpu"]),
             accelerator_count=int(recipe["num_gpus"]),
             precision=str(bench_metadata["precision"]) if bench_metadata.get("precision") else None,
-            tensor_parallel_size=int(bench_metadata["tp"]) if bench_metadata.get("tp") else None,
+            tensor_parallel_size=parallelism,
         ),
         observations=(
             Observation(
@@ -174,7 +177,7 @@ def build_performance_bundle(
                     "completed": int(result["completed"]),
                     "failed": int(result["failed"]),
                 },
-                metrics=performance_metrics(result),
+                metrics=performance_metrics(result, parallelism),
                 source=ObservationSource(adapter="perf-eval", adapter_version=__version__),
             ),
         ),
