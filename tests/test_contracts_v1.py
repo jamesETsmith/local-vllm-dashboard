@@ -34,6 +34,14 @@ def test_idempotency_key_is_deterministic(name: str) -> None:
     assert reparsed.calculated_idempotency_key() == calculated
 
 
+def test_idempotency_key_ignores_submission_identifier() -> None:
+    bundle = Bundle.model_validate(load_fixture("performance.json"))
+    other = Bundle.model_validate(load_fixture("accuracy.json"))
+    changed_id = bundle.model_copy(update={"bundle_id": other.bundle_id})
+
+    assert bundle.calculated_idempotency_key() == changed_id.calculated_idempotency_key()
+
+
 def test_unknown_fields_are_rejected() -> None:
     data = load_fixture("performance.json")
     data["unexpected"] = True

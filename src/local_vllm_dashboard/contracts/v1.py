@@ -173,7 +173,7 @@ class Bundle(ContractModel):
         return self
 
     def canonical_json(self, *, include_idempotency_key: bool = True) -> bytes:
-        excluded = set() if include_idempotency_key else {"idempotency_key"}
+        excluded = set() if include_idempotency_key else {"bundle_id", "idempotency_key"}
         data: dict[str, Any] = self.model_dump(mode="json", exclude=excluded)
         return json.dumps(
             data,
