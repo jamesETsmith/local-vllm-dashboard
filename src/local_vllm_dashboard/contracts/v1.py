@@ -47,14 +47,6 @@ class MetricName(StrEnum):
     STANDARD_ERROR = "standard_error"
 
 
-class MetricUnit(StrEnum):
-    DIMENSIONLESS = "1"
-    PERCENT = "%"
-    REQUESTS_PER_SECOND = "request/s"
-    TOKENS_PER_SECOND = "token/s"
-    SECONDS = "s"
-
-
 class MetricAggregation(StrEnum):
     RUN = "run"
     MEAN = "mean"
@@ -138,7 +130,7 @@ class Environment(ContractModel):
 class Metric(ContractModel):
     name: MetricName
     value: float
-    unit: MetricUnit
+    unit: NonEmptyString
     aggregation: MetricAggregation
 
 

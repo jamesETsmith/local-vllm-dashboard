@@ -50,11 +50,20 @@ def test_unknown_metric_names_are_rejected() -> None:
         Bundle.model_validate(data)
 
 
-def test_unknown_units_are_rejected() -> None:
+def test_nonempty_custom_units_are_accepted() -> None:
     data = load_fixture("performance.json")
     data["observations"][0]["metrics"][0]["unit"] = "widgets/fortnight"
 
-    with pytest.raises(ValidationError, match="Input should be"):
+    bundle = Bundle.model_validate(data)
+
+    assert bundle.observations[0].metrics[0].unit == "widgets/fortnight"
+
+
+def test_empty_units_are_rejected() -> None:
+    data = load_fixture("performance.json")
+    data["observations"][0]["metrics"][0]["unit"] = ""
+
+    with pytest.raises(ValidationError, match="at least 1 character"):
         Bundle.model_validate(data)
 
 

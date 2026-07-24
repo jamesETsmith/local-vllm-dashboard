@@ -132,7 +132,9 @@
           "$ref": "#/$defs/MetricName"
         },
         "unit": {
-          "$ref": "#/$defs/MetricUnit"
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
         },
         "value": {
           "title": "Value",
@@ -183,17 +185,6 @@
         "standard_error"
       ],
       "title": "MetricName",
-      "type": "string"
-    },
-    "MetricUnit": {
-      "enum": [
-        "1",
-        "%",
-        "request/s",
-        "token/s",
-        "s"
-      ],
-      "title": "MetricUnit",
       "type": "string"
     },
     "Observation": {
