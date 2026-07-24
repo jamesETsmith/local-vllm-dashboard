@@ -39,13 +39,15 @@ perf-eval artifacts
   -> source adapter
   -> canonical bundle
   -> publisher
-  -> HTTPS ingestion API                               -> immutable artifact storage + operational database
-                                                       -> derived-query worker
-                                                       -> dashboard API
+  -> HTTPS ingestion API                               -> operational database
+                                                       -> dashboard server
                                                        -> dashboard UI
+
+LATER MCP PHASE
+MCP clients -> MCP server                               -> operational database
 ```
 
-The source adapter and publisher execute where `perf-eval` runs and need only local artifact access plus outbound HTTPS access to the ingestion API. The ingestion API, artifact storage, operational database, projection worker, dashboard API, and dashboard UI execute on the database/service side. In a local development deployment, these roles may share one host while retaining the same interfaces and dependency direction.
+The source adapter and publisher execute where `perf-eval` runs and need only local artifact access plus outbound HTTPS access to the ingestion API. The ingestion API, operational database, dashboard server, and dashboard UI execute on the database/service side. During the simple dashboard phase, the dashboard server reads PostgreSQL directly and renders browser-facing views without a separate query API. A later MCP phase introduces a dedicated read interface for machine consumers. In a local development deployment, these roles may share one host while retaining the same interfaces and dependency direction.
 
 A downstream layer must never parse a `perf-eval` directory or depend on a `perf-eval` Python or shell module. A source adapter must never connect directly to the production database. The UI must never parse artifacts or calculate authoritative benchmark metrics.
 
@@ -70,9 +72,8 @@ Only server-side services connect to the database. The initial deployment is res
 | `publisher` | Validating, spooling, retrying, and sending one canonical bundle request | contracts, HTTP client, local filesystem | artifact parsers, server database, UI |
 | `ingestion-api` | Contract validation, idempotency, and durable acceptance | contracts, database interface | `perf-eval` parser, dashboard logic, UI |
 | `result-store` | Transactional records and normalized canonical observations | database engine, contracts | source file formats, UI |
-| `projection-worker` | Dashboard query rows and aggregates | result store, contracts | HTTP request lifecycle, UI |
-| `query-api` | Read-only dashboard query models and filtering | projections, result store | `perf-eval`, artifact parsing, write paths |
-| `dashboard` | Human-facing exploration and visualization | query API contract | database, `perf-eval` formats |
+| `dashboard` | Server-rendered human views, filtering, and visualization | result store, database interface | `perf-eval` formats, ingestion write paths |
+| `mcp-server` | Later machine-readable discovery and query tools | result store, database interface | `perf-eval` formats, ingestion write paths, dashboard presentation |
 
 Implementations may live in one repository and deploy together initially, but package and interface boundaries remain enforced. In-process calls are allowed only behind the same contract-oriented interfaces as future network calls.
 
@@ -252,40 +253,39 @@ For example, a raw `mean_ttft_ms` becomes `mean_ttft` with unit `s`; the origina
 
 The ingestion server validates the canonical schema, allowed units and metric names, idempotency key, and request size, then stores transformed facts. It does not fetch, verify, or reinterpret local `perf-eval` source artifacts, and it does not apply performance-dashboard-specific transformations.
 
-### 10.3 Projection responsibilities
+### 10.3 Dashboard derivation responsibilities
 
-The worker derives user-facing values from canonical facts under a named projection revision. Examples include per-GPU throughput, normalized display units, task score summaries, and percentile displays. Every derived value records the observation and projection revision from which it came.
+The dashboard server derives display-only values from canonical facts while handling a request. Examples include normalized display units, task score summaries, and table groupings. These calculations are presentation concerns and do not mutate stored observations. A projection worker is deferred until data volume or repeated calculations demonstrate that one is needed.
 
-## 12. Dashboard and query API
+## 11. Dashboard
 
-The dashboard consumes only the read-only query API. It does not access PostgreSQL or object storage directly.
+Phase 2 provides a simple server-rendered dashboard that reads PostgreSQL directly through the result-store interface. It does not add a general-purpose query API, a separate frontend application, or a projection worker.
 
 Initial views:
 
-1. **Runs:** status, source and vLLM provenance, workload, environment, submission time, and ingestion validation state.
-2. **Run detail:** canonical observations, metric values, raw-artifact provenance, and adapter/projection versions.
-3. **Performance explorer:** filtered tables across workloads, vLLM versions, and benchmark settings.
-4. **Accuracy explorer:** task scores across workloads, vLLM versions, and task settings, including partial-result markers.
+1. **Performance:** per-GPU throughput and latency tables with hardware, model, workload, token-length, and concurrency filters.
+2. **Accuracy:** task scores with model, workload, task, and few-shot settings.
+3. **Runs and data:** compact run provenance and canonical observation details needed to understand displayed results.
 
-Query endpoints return stable view models rather than raw relational tables. Example endpoint families are `GET /v1/runs`, `GET /v1/runs/{id}`, and `GET /v1/metrics`.
+The ATOM benchmark dashboard is the interaction reference: a small number of tabs, centralized filter state, native tables, and charts only where they make comparisons clearer. The implementation remains server-rendered and progressively enhanced so Phase 2 does not require a separate browser application architecture.
 
 ## 12. Deployment topology
 
 ### 12.1 Development and single-user deployment
 
-A Docker Compose environment runs PostgreSQL, ingestion API, worker, query API, and dashboard. The publisher runs on the local benchmark host and targets the local or remote ingestion API.
+A Docker Compose environment runs PostgreSQL, the ingestion API, and the dashboard server. The publisher runs on the local benchmark host and targets the local or remote ingestion API.
 
 ### 12.2 Shared deployment
 
-PostgreSQL supports stateless ingestion API, worker, query API, and dashboard instances. Background workers scale independently from HTTP services. Benchmark workers and CI agents require only network access to the ingestion endpoint.
+PostgreSQL supports the ingestion API and dashboard server. Benchmark workers and CI agents require only network access to the ingestion endpoint.
 
 The API is the only write boundary. PostgreSQL remains a private network service.
 
 ## 13. Observability and operations
 
-The server emits structured logs, request IDs, and bundle IDs. Metrics cover accepted/rejected bundles, validation error categories, request size, ingestion latency, projection queue lag, projection failures, query latency, and database growth.
+The server emits structured logs, request IDs, and bundle IDs. Metrics cover accepted/rejected bundles, validation error categories, request size, ingestion latency, dashboard render latency, and database growth.
 
-Operational runbooks cover database backup/restore, queued projection replay, projection rebuild by revision, failed-ingestion investigation, and schema migration rollback.
+Operational runbooks cover database backup/restore, failed-ingestion investigation, dashboard query investigation, and schema reset procedures during early development.
 
 ## 14. Testing strategy
 
@@ -293,9 +293,9 @@ Operational runbooks cover database backup/restore, queued projection replay, pr
 2. Adapter golden tests: representative `perf-eval` fixture directories produce exact canonical bundles and raw-artifact provenance.
 3. Publisher tests: single-request retry, idempotency, request failure, and offline spool behavior.
 4. API tests: schema validation, duplicate submissions, size limits, and atomic persistence.
-5. Projection tests: deterministic dashboard query rows and aggregates.
-6. Query tests: filters correctly expose workloads, versions, and benchmark settings.
-7. End-to-end test: adapter fixture to publisher to local server to dashboard query.
+5. Dashboard repository tests: filters correctly expose workloads, versions, and benchmark settings.
+6. Dashboard rendering tests: stored performance and accuracy observations appear in the expected views.
+7. End-to-end test: adapter fixture to publisher to local server to rendered dashboard.
 
 No dashboard test should require a live `perf-eval` installation. No adapter test should require a database or dashboard.
 
@@ -307,15 +307,19 @@ Create the contracts package, canonical v1 JSON schema, metric vocabulary, fixtu
 
 ### Phase 1: Single-user ingestion vertical slice
 
-Build the `perf-eval` adapter, local publisher, single-request ingestion API, PostgreSQL persistence, and one run-detail query endpoint. Support performance raw JSON and lm-eval result JSON. Transform inputs and retain raw artifacts on the benchmark host; submit only transformed data and raw-artifact provenance. Provide Compose deployment and end-to-end fixtures.
+Build the `perf-eval` adapter, local publisher, single-request ingestion API, and PostgreSQL persistence. Support performance raw JSON and lm-eval result JSON. Transform inputs and retain raw artifacts on the benchmark host; submit only transformed data and raw-artifact provenance. Provide Compose deployment and end-to-end fixtures.
 
-### Phase 2: Query model and dashboard
+### Phase 2: Simple dashboard
 
-Add projection worker, run list, run detail, and filtered performance and accuracy explorers across workloads, vLLM versions, and benchmark settings.
+Add a server-rendered dashboard that reads PostgreSQL through the result-store interface. Provide filtered performance, accuracy, and run-data views without a separate query API, frontend application, or projection worker.
 
 ### Phase 3: Additional input coverage
 
 Add richer BFCL handling, additional `perf-eval` artifact formats, custom dimensions, and optional data export.
+
+### Later phase: MCP query interface
+
+Add an MCP server for machine-readable run discovery, filtering, and metric retrieval. Define stable MCP tools and read models at that time rather than introducing a general-purpose dashboard query API prematurely.
 
 ## 16. Resolved implementation decisions
 
