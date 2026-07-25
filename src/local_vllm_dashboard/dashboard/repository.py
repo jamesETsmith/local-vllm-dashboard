@@ -1,0 +1,227 @@
+from __future__ import annotations
+
+from collections.abc import Iterable
+from datetime import datetime
+from typing import Any, cast
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session, selectinload
+
+from local_vllm_dashboard.dashboard.models import (
+    AccuracyView,
+    DashboardData,
+    DashboardFilters,
+    FilterOptions,
+    MetricView,
+    PerformanceView,
+    RunView,
+)
+from local_vllm_dashboard.db.models import BundleRecord, ObservationRecord
+
+
+def optional_int(value: object) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+def optional_string(value: object) -> str | None:
+    return value if isinstance(value, str) and value else None
+
+
+def parse_datetime(value: object) -> datetime:
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    raise ValueError("expected an ISO datetime")
+
+
+def mapping(value: object) -> dict[str, Any]:
+    return cast(dict[str, Any], value) if isinstance(value, dict) else {}
+
+
+def metrics_view(observation: ObservationRecord) -> tuple[MetricView, ...]:
+    return tuple(
+        MetricView(
+            name=metric.name,
+            value=metric.value,
+            unit=metric.unit,
+            aggregation=metric.aggregation,
+        )
+        for metric in sorted(observation.metrics, key=lambda item: (item.name, item.aggregation))
+    )
+
+
+def unique_sorted(values: Iterable[str | None]) -> tuple[str, ...]:
+    return tuple(sorted({value for value in values if value is not None}))
+
+
+def unique_sorted_int(values: Iterable[int | None]) -> tuple[int, ...]:
+    return tuple(sorted({value for value in values if value is not None}))
+
+
+class DashboardRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def load(self, filters: DashboardFilters | None = None) -> DashboardData:
+        selected_filters = filters or DashboardFilters()
+        bundles = self.session.scalars(
+            select(BundleRecord)
+            .options(
+                selectinload(BundleRecord.artifacts),
+                selectinload(BundleRecord.observations).selectinload(ObservationRecord.metrics),
+            )
+            .order_by(BundleRecord.accepted_at.desc())
+        ).all()
+        all_performance = tuple(
+            view
+            for bundle in bundles
+            for observation in bundle.observations
+            if observation.kind == "performance"
+            for view in (self.performance_view(bundle, observation),)
+        )
+        all_accuracy = tuple(
+            view
+            for bundle in bundles
+            for observation in bundle.observations
+            if observation.kind == "accuracy"
+            for view in (self.accuracy_view(bundle, observation),)
+        )
+        performance = tuple(
+            view for view in all_performance if self.matches_performance(view, selected_filters)
+        )
+        accuracy = tuple(
+            view for view in all_accuracy if self.matches_accuracy(view, selected_filters)
+        )
+        runs = tuple(
+            self.run_view(bundle)
+            for bundle in bundles
+            if self.matches_run(self.run_view(bundle), selected_filters)
+        )
+        return DashboardData(
+            performance=performance,
+            accuracy=accuracy,
+            runs=runs,
+            options=self.filter_options(all_performance, all_accuracy),
+        )
+
+    def performance_view(
+        self,
+        bundle: BundleRecord,
+        observation: ObservationRecord,
+    ) -> PerformanceView:
+        payload = bundle.payload
+        environment = mapping(payload.get("environment"))
+        workload = mapping(payload.get("workload"))
+        run = mapping(payload.get("run"))
+        configuration = observation.configuration
+        return PerformanceView(
+            bundle_id=bundle.bundle_id,
+            completed_at=parse_datetime(run.get("completed_at")),
+            hardware=str(environment.get("accelerator", "unknown")),
+            accelerator_count=int(environment.get("accelerator_count", 0)),
+            model=str(workload.get("model", "unknown")),
+            workload=str(workload.get("name", "unknown")),
+            precision=optional_string(environment.get("precision")),
+            input_tokens=optional_int(configuration.get("input_tokens")),
+            output_tokens=optional_int(configuration.get("output_tokens")),
+            concurrency=optional_int(configuration.get("max_concurrency")),
+            completed_requests=optional_int(configuration.get("completed")),
+            failed_requests=optional_int(configuration.get("failed")),
+            metrics=metrics_view(observation),
+        )
+
+    def accuracy_view(
+        self,
+        bundle: BundleRecord,
+        observation: ObservationRecord,
+    ) -> AccuracyView:
+        payload = bundle.payload
+        environment = mapping(payload.get("environment"))
+        workload = mapping(payload.get("workload"))
+        run = mapping(payload.get("run"))
+        configuration = observation.configuration
+        return AccuracyView(
+            bundle_id=bundle.bundle_id,
+            completed_at=parse_datetime(run.get("completed_at")),
+            hardware=str(environment.get("accelerator", "unknown")),
+            model=str(workload.get("model", "unknown")),
+            workload=str(workload.get("name", "unknown")),
+            task=optional_string(observation.subject.get("task")) or "unknown",
+            fewshot=optional_int(configuration.get("num_fewshot")) or 0,
+            partial=configuration.get("partial") is True,
+            metrics=metrics_view(observation),
+        )
+
+    def run_view(self, bundle: BundleRecord) -> RunView:
+        payload = bundle.payload
+        environment = mapping(payload.get("environment"))
+        workload = mapping(payload.get("workload"))
+        run = mapping(payload.get("run"))
+        vllm = mapping(run.get("vllm"))
+        runner = mapping(run.get("runner"))
+        return RunView(
+            bundle_id=bundle.bundle_id,
+            accepted_at=bundle.accepted_at,
+            completed_at=parse_datetime(run.get("completed_at")),
+            workload=str(workload.get("name", "unknown")),
+            model=str(workload.get("model", "unknown")),
+            hardware=str(environment.get("accelerator", "unknown")),
+            accelerator_count=int(environment.get("accelerator_count", 0)),
+            vllm_image=optional_string(vllm.get("image")),
+            vllm_commit=optional_string(vllm.get("commit")),
+            runner_kind=str(runner.get("kind", "unknown")),
+            observation_count=len(bundle.observations),
+            artifact_count=len(bundle.artifacts),
+        )
+
+    @staticmethod
+    def matches_performance(view: PerformanceView, filters: DashboardFilters) -> bool:
+        return (
+            (filters.hardware is None or view.hardware == filters.hardware)
+            and (filters.model is None or view.model == filters.model)
+            and (filters.workload is None or view.workload == filters.workload)
+            and (filters.input_tokens is None or view.input_tokens == filters.input_tokens)
+            and (filters.output_tokens is None or view.output_tokens == filters.output_tokens)
+            and (filters.concurrency is None or view.concurrency == filters.concurrency)
+            and (filters.precision is None or view.precision == filters.precision)
+        )
+
+    @staticmethod
+    def matches_accuracy(view: AccuracyView, filters: DashboardFilters) -> bool:
+        return (
+            (filters.hardware is None or view.hardware == filters.hardware)
+            and (filters.model is None or view.model == filters.model)
+            and (filters.workload is None or view.workload == filters.workload)
+            and (filters.task is None or view.task == filters.task)
+        )
+
+    @staticmethod
+    def matches_run(view: RunView, filters: DashboardFilters) -> bool:
+        return (
+            (filters.hardware is None or view.hardware == filters.hardware)
+            and (filters.model is None or view.model == filters.model)
+            and (filters.workload is None or view.workload == filters.workload)
+        )
+
+    @staticmethod
+    def filter_options(
+        performance: tuple[PerformanceView, ...],
+        accuracy: tuple[AccuracyView, ...],
+    ) -> FilterOptions:
+        return FilterOptions(
+            hardware=unique_sorted(
+                [view.hardware for view in performance] + [view.hardware for view in accuracy]
+            ),
+            models=unique_sorted(
+                [view.model for view in performance] + [view.model for view in accuracy]
+            ),
+            workloads=unique_sorted(
+                [view.workload for view in performance] + [view.workload for view in accuracy]
+            ),
+            input_tokens=unique_sorted_int(view.input_tokens for view in performance),
+            output_tokens=unique_sorted_int(view.output_tokens for view in performance),
+            concurrencies=unique_sorted_int(view.concurrency for view in performance),
+            precisions=unique_sorted(view.precision for view in performance),
+            tasks=unique_sorted(view.task for view in accuracy),
+        )

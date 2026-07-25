@@ -2,11 +2,13 @@ from collections.abc import Iterator
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.orm import Session, sessionmaker
 
 from local_vllm_dashboard.contracts import Bundle
+from local_vllm_dashboard.dashboard import create_dashboard_app
 from local_vllm_dashboard.db import (
     BundleRepository,
     IdempotencyConflictError,
@@ -35,6 +37,15 @@ def create_app(
     selected_settings = settings or Settings()
     factory = session_factory or make_session_factory(make_engine(selected_settings.database_url))
     app = FastAPI(title="Local vLLM Dashboard Ingestion API")
+    app.mount("/dashboard", create_dashboard_app(factory), name="dashboard")
+
+    @app.get("/", include_in_schema=False)
+    def dashboard_redirect() -> RedirectResponse:
+        return RedirectResponse("/dashboard/", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+
+    @app.get("/favicon.ico", include_in_schema=False, status_code=status.HTTP_204_NO_CONTENT)
+    def favicon() -> Response:
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     def get_session() -> Iterator[Session]:
         with factory() as session:

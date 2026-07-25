@@ -20,7 +20,7 @@ uv run poe down
 uv run poe reset
 ```
 
-`up` starts PostgreSQL, creates the current schema from scratch, and starts the one-way ingestion API. During early development, schema changes are intentionally breaking; use `uv run poe reset` to remove the database volume before restarting.
+`up` starts PostgreSQL, creates the current schema from scratch, and starts the ingestion service and dashboard. Open `http://localhost:8000/dashboard/` to view stored results. During early development, schema changes are intentionally breaking; use `uv run poe reset` to remove the database volume before restarting.
 
 Create a canonical performance bundle from `perf-eval` files:
 

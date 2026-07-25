@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>vLLM Results Dashboard</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
+    <link rel="stylesheet" href="{{ request.scope.get('root_path', '') }}/static/dashboard.css">
+  </head>
+  <body>
+    <header class="shell masthead">
+      <div>
+        <p class="eyebrow">Local benchmark observatory</p>
+        <h1>vLLM Results</h1>
+        <p class="lede">Compare standardized performance and accuracy results without losing the settings behind them.</p>
+        <a class="github-link" href="https://github.com/jamesETsmith/local-vllm-dashboard">View project on GitHub <span aria-hidden="true">↗</span></a>
+      </div>
+      <div class="stat-grid" aria-label="Result counts">
+        <div><strong>{{ data.performance|length }}</strong><span>Performance</span></div>
+        <div><strong>{{ data.accuracy|length }}</strong><span>Accuracy</span></div>
+        <div><strong>{{ data.runs|length }}</strong><span>Runs</span></div>
+      </div>
+    </header>
+
+    <main class="shell">
+      <nav class="tabs" aria-label="Dashboard sections">
+        <a class="{{ 'active' if tab == 'performance' else '' }}" href="{{ request.url.include_query_params(tab='performance') }}">Performance</a>
+        <a class="{{ 'active' if tab == 'accuracy' else '' }}" href="{{ request.url.include_query_params(tab='accuracy') }}">Accuracy</a>
+        <a class="{{ 'active' if tab == 'runs' else '' }}" href="{{ request.url.include_query_params(tab='runs') }}">Runs &amp; Data</a>
+      </nav>
+
+      <form class="filters" method="get">
+        <input type="hidden" name="tab" value="{{ tab }}">
+        <label>Hardware
+          <select name="hardware">
+            <option value="">All</option>
+            {% for value in data.options.hardware %}<option {{ 'selected' if filters.hardware == value else '' }}>{{ value }}</option>{% endfor %}
+          </select>
+        </label>
+        <label>Model
+          <select name="model">
+            <option value="">All</option>
+            {% for value in data.options.models %}<option {{ 'selected' if filters.model == value else '' }}>{{ value }}</option>{% endfor %}
+          </select>
+        </label>
+        <label>Workload
+          <select name="workload">
+            <option value="">All</option>
+            {% for value in data.options.workloads %}<option {{ 'selected' if filters.workload == value else '' }}>{{ value }}</option>{% endfor %}
+          </select>
+        </label>
+        {% if tab == 'performance' %}
+          <label>Input tokens
+            <select name="input_tokens"><option value="">All</option>{% for value in data.options.input_tokens %}<option {{ 'selected' if filters.input_tokens == value else '' }}>{{ value }}</option>{% endfor %}</select>
+          </label>
+          <label>Output tokens
+            <select name="output_tokens"><option value="">All</option>{% for value in data.options.output_tokens %}<option {{ 'selected' if filters.output_tokens == value else '' }}>{{ value }}</option>{% endfor %}</select>
+          </label>
+          <label>Concurrency
+            <select name="concurrency"><option value="">All</option>{% for value in data.options.concurrencies %}<option {{ 'selected' if filters.concurrency == value else '' }}>{{ value }}</option>{% endfor %}</select>
+          </label>
+          <label>Precision
+            <select name="precision"><option value="">All</option>{% for value in data.options.precisions %}<option {{ 'selected' if filters.precision == value else '' }}>{{ value }}</option>{% endfor %}</select>
+          </label>
+        {% elif tab == 'accuracy' %}
+          <label>Task
+            <select name="task"><option value="">All</option>{% for value in data.options.tasks %}<option {{ 'selected' if filters.task == value else '' }}>{{ value }}</option>{% endfor %}</select>
+          </label>
+        {% endif %}
+        <div class="filter-actions"><button type="submit">Apply filters</button><a href="/?tab={{ tab }}">Reset</a></div>
+      </form>
+
+      {% if tab == 'performance' %}
+        <section class="panel">
+          <div class="section-heading"><div><p class="eyebrow">Normalized results</p><h2>Performance</h2></div><p>Throughput is reported per GPU. Latencies are reported in seconds.</p></div>
+          {% if data.performance %}
+            <div class="table-wrap"><table>
+              <thead><tr><th>Completed</th><th>Hardware</th><th>Model / workload</th><th>Settings</th><th>Metrics</th><th>Requests</th></tr></thead>
+              <tbody>{% for row in data.performance %}<tr>
+                <td><time>{{ row.completed_at.strftime('%Y-%m-%d %H:%M') }}</time></td>
+                <td><strong>{{ row.hardware }}</strong><small>{{ row.accelerator_count }} GPU{% if row.accelerator_count != 1 %}s{% endif %}</small></td>
+                <td><strong>{{ row.model }}</strong><small>{{ row.workload }}</small></td>
+                <td><span class="chip">{{ row.input_tokens or '?' }} in</span><span class="chip">{{ row.output_tokens or '?' }} out</span><span class="chip">c={{ row.concurrency or '?' }}</span>{% if row.precision %}<span class="chip">{{ row.precision }}</span>{% endif %}</td>
+                <td><div class="metric-list">{% for metric in row.metrics %}<span><b>{{ '%.4g'|format(metric.value) }}</b> {{ metric.unit }}<small>{{ metric.name|replace('_', ' ') }}</small></span>{% endfor %}</div></td>
+                <td><strong>{{ row.completed_requests if row.completed_requests is not none else '?' }}</strong> completed<small class="{{ 'danger' if row.failed_requests else '' }}">{{ row.failed_requests or 0 }} failed</small></td>
+              </tr>{% endfor %}</tbody>
+            </table></div>
+          {% else %}<div class="empty"><h3>No performance results</h3><p>Adjust the filters or publish a performance bundle.</p></div>{% endif %}
+        </section>
+      {% elif tab == 'accuracy' %}
+        <section class="panel">
+          <div class="section-heading"><div><p class="eyebrow">Evaluation results</p><h2>Accuracy</h2></div><p>Task configuration remains visible beside every score.</p></div>
+          {% if data.accuracy %}
+            <div class="table-wrap"><table>
+              <thead><tr><th>Completed</th><th>Model / workload</th><th>Task</th><th>Configuration</th><th>Scores</th></tr></thead>
+              <tbody>{% for row in data.accuracy %}<tr>
+                <td>{{ row.completed_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td><strong>{{ row.model }}</strong><small>{{ row.workload }} · {{ row.hardware }}</small></td>
+                <td><strong>{{ row.task }}</strong></td>
+                <td><span class="chip">{{ row.fewshot }}-shot</span>{% if row.partial %}<span class="chip danger">partial</span>{% endif %}</td>
+                <td><div class="metric-list">{% for metric in row.metrics %}<span><b>{{ '%.5g'|format(metric.value) }}</b> {{ metric.unit }}<small>{{ metric.name|replace('_', ' ') }}</small></span>{% endfor %}</div></td>
+              </tr>{% endfor %}</tbody>
+            </table></div>
+          {% else %}<div class="empty"><h3>No accuracy results</h3><p>Adjust the filters or publish an lm-eval bundle.</p></div>{% endif %}
+        </section>
+      {% else %}
+        <section class="panel">
+          <div class="section-heading"><div><p class="eyebrow">Provenance</p><h2>Runs &amp; Data</h2></div><p>Compact evidence for interpreting every displayed result.</p></div>
+          {% if data.runs %}
+            <div class="table-wrap"><table>
+              <thead><tr><th>Accepted</th><th>Workload</th><th>Environment</th><th>vLLM</th><th>Source</th><th>Bundle</th></tr></thead>
+              <tbody>{% for row in data.runs %}<tr>
+                <td>{{ row.accepted_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td><strong>{{ row.workload }}</strong><small>{{ row.model }}</small></td>
+                <td><strong>{{ row.hardware }}</strong><small>{{ row.accelerator_count }} GPU{% if row.accelerator_count != 1 %}s{% endif %}</small></td>
+                <td>{{ row.vllm_image or row.vllm_commit or 'unknown' }}</td>
+                <td>{{ row.runner_kind }}<small>{{ row.observation_count }} observation{% if row.observation_count != 1 %}s{% endif %} · {{ row.artifact_count }} artifact references</small></td>
+                <td><code>{{ row.bundle_id }}</code></td>
+              </tr>{% endfor %}</tbody>
+            </table></div>
+          {% else %}<div class="empty"><h3>No runs</h3><p>Adjust the filters or publish a canonical bundle.</p></div>{% endif %}
+        </section>
+      {% endif %}
+    </main>
+  </body>
+</html>
