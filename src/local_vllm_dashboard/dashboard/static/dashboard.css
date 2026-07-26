@@ -102,6 +102,10 @@ code { display: inline-block; max-width: 220px; padding: 5px 8px; border-radius:
 .back-link { display: inline-block; margin-bottom: 30px; color: var(--muted); font-size: .85rem; font-weight: 650; text-decoration: none; }
 .back-link:hover { color: var(--accent); }
 .detail-grid { display: grid; gap: 22px; padding-bottom: 50px; }
+.detail-section-heading { padding: 28px 4px 2px; }
+.detail-section-heading h2 { margin-bottom: 7px; font-size: 2rem; }
+.detail-section-heading > p:last-child { max-width: 680px; margin-bottom: 0; color: var(--muted); line-height: 1.55; }
+.detail-card .section-heading h3 { margin-bottom: 0; font-size: 1.18rem; }
 .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1px; margin: 0; background: var(--line); }
 .summary-grid div { min-width: 0; padding: 18px 20px; background: var(--surface); }
 .summary-grid dt { margin-bottom: 7px; color: var(--muted); font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }

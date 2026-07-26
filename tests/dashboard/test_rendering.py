@@ -102,9 +102,12 @@ def test_run_detail_renders_full_configuration() -> None:
 
     assert response.status_code == 200
     assert "Run provenance" in response.text
+    assert "Perf Data" in response.text
+    assert "Reproduce Results" in response.text
+    assert "local-vllm-dashboard Info" in response.text
     assert "&#34;max_concurrency&#34;: 4" in response.text
     assert "&#34;prefix_cache_tokens&#34;: 40000" in response.text
-    assert "Complete submitted bundle" in response.text
+    assert "Complete submitted data" in response.text
     assert "perf-eval workload YAML" in response.text
     assert "Transformed / extracted source data" in response.text
     assert "prefix_cache_workload.yaml" in response.text
