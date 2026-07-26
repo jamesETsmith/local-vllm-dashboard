@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Iterable
 from datetime import datetime
 from typing import Any, cast
+from uuid import UUID
 
+from pygments import highlight
+from pygments.formatters.html import HtmlFormatter
+from pygments.lexers.data import JsonLexer, YamlLexer
+from pygments.lexers.shell import BashLexer
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -14,9 +20,11 @@ from local_vllm_dashboard.dashboard.models import (
     FilterOptions,
     MetricView,
     PerformanceView,
+    RunDetailView,
     RunView,
+    SourceArtifactView,
 )
-from local_vllm_dashboard.db.models import BundleRecord, ObservationRecord
+from local_vllm_dashboard.db.models import ArtifactRecord, BundleRecord, ObservationRecord
 
 
 def optional_int(value: object) -> int | None:
@@ -57,6 +65,33 @@ def unique_sorted(values: Iterable[str | None]) -> tuple[str, ...]:
 
 def unique_sorted_int(values: Iterable[int | None]) -> tuple[int, ...]:
     return tuple(sorted({value for value in values if value is not None}))
+
+
+def highlighted(code: str, media_type: str) -> str:
+    lexer = YamlLexer() if media_type == "application/yaml" else JsonLexer()
+    return highlight(code, lexer, HtmlFormatter(nowrap=True))
+
+
+def artifact_title(role: str) -> tuple[str, str]:
+    if role == "workload_recipe":
+        return (
+            "perf-eval workload YAML",
+            "Original perf-eval recipe used to configure and launch this benchmark.",
+        )
+    return (
+        "Transformed / extracted source data",
+        "Original benchmark result JSON used by the client to produce canonical metrics.",
+    )
+
+
+def reproduction_command(artifacts: list[ArtifactRecord]) -> str | None:
+    recipe = next(
+        (artifact.path for artifact in artifacts if artifact.role == "workload_recipe"),
+        None,
+    )
+    if recipe is None:
+        return None
+    return f"./lib/run.sh {recipe}"
 
 
 class DashboardRepository:
@@ -103,6 +138,64 @@ class DashboardRepository:
             accuracy=accuracy,
             runs=runs,
             options=self.filter_options(all_performance, all_accuracy),
+        )
+
+    def detail(self, bundle_id: UUID) -> RunDetailView | None:
+        bundle = self.session.scalar(
+            select(BundleRecord)
+            .where(BundleRecord.bundle_id == bundle_id)
+            .options(
+                selectinload(BundleRecord.artifacts),
+                selectinload(BundleRecord.observations).selectinload(ObservationRecord.metrics),
+            )
+        )
+        if bundle is None:
+            return None
+        observations = sorted(
+            bundle.observations,
+            key=lambda observation: observation.observation_id,
+        )
+        artifact_records = sorted(bundle.artifacts, key=lambda artifact: artifact.path)
+        command = reproduction_command(artifact_records)
+        payload_json = json.dumps(bundle.payload, indent=2, sort_keys=True)
+        return RunDetailView(
+            run=self.run_view(bundle),
+            reproduction_command=command,
+            reproduction_command_html=(
+                highlight(command, BashLexer(), HtmlFormatter(nowrap=True)) if command else None
+            ),
+            payload_json=payload_json,
+            payload_json_html=highlight(payload_json, JsonLexer(), HtmlFormatter(nowrap=True)),
+            configuration_json=tuple(
+                json.dumps(observation.configuration, indent=2, sort_keys=True)
+                for observation in observations
+            ),
+            subject_json=tuple(
+                json.dumps(observation.subject, indent=2, sort_keys=True)
+                for observation in observations
+            ),
+            source_json=tuple(
+                json.dumps(observation.source, indent=2, sort_keys=True)
+                for observation in observations
+            ),
+            metrics=tuple(metrics_view(observation) for observation in observations),
+            artifacts=tuple(
+                SourceArtifactView(
+                    path=artifact.path,
+                    role=artifact.role,
+                    title=artifact_title(artifact.role)[0],
+                    description=artifact_title(artifact.role)[1],
+                    media_type=artifact.media_type,
+                    size_bytes=artifact.size_bytes,
+                    digest=artifact.digest,
+                    text=artifact.content.decode("utf-8"),
+                    highlighted_html=highlighted(
+                        artifact.content.decode("utf-8"),
+                        artifact.media_type,
+                    ),
+                )
+                for artifact in artifact_records
+            ),
         )
 
     def performance_view(
@@ -181,7 +274,6 @@ class DashboardRepository:
         return (
             (filters.hardware is None or view.hardware == filters.hardware)
             and (filters.model is None or view.model == filters.model)
-            and (filters.workload is None or view.workload == filters.workload)
             and (filters.input_tokens is None or view.input_tokens == filters.input_tokens)
             and (filters.output_tokens is None or view.output_tokens == filters.output_tokens)
             and (filters.concurrency is None or view.concurrency == filters.concurrency)
@@ -193,16 +285,13 @@ class DashboardRepository:
         return (
             (filters.hardware is None or view.hardware == filters.hardware)
             and (filters.model is None or view.model == filters.model)
-            and (filters.workload is None or view.workload == filters.workload)
             and (filters.task is None or view.task == filters.task)
         )
 
     @staticmethod
     def matches_run(view: RunView, filters: DashboardFilters) -> bool:
-        return (
-            (filters.hardware is None or view.hardware == filters.hardware)
-            and (filters.model is None or view.model == filters.model)
-            and (filters.workload is None or view.workload == filters.workload)
+        return (filters.hardware is None or view.hardware == filters.hardware) and (
+            filters.model is None or view.model == filters.model
         )
 
     @staticmethod
@@ -216,9 +305,6 @@ class DashboardRepository:
             ),
             models=unique_sorted(
                 [view.model for view in performance] + [view.model for view in accuracy]
-            ),
-            workloads=unique_sorted(
-                [view.workload for view in performance] + [view.workload for view in accuracy]
             ),
             input_tokens=unique_sorted_int(view.input_tokens for view in performance),
             output_tokens=unique_sorted_int(view.output_tokens for view in performance),

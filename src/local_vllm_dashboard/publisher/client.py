@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 import httpx
 
+from local_vllm_dashboard.artifacts import ArtifactContent
 from local_vllm_dashboard.contracts import Bundle
 
 
@@ -19,16 +20,32 @@ class Publisher:
         transport = httpx.HTTPTransport(retries=retries)
         self.client = httpx.Client(transport=transport, timeout=timeout)
 
-    def publish(self, bundle: Bundle) -> PublishResult:
+    def publish(
+        self,
+        bundle: Bundle,
+        artifacts: tuple[ArtifactContent, ...] = (),
+    ) -> PublishResult:
         if not bundle.has_valid_idempotency_key():
             raise ValueError("bundle idempotency key does not match its canonical content")
+        files = [
+            ("bundle", ("bundle.json", bundle.canonical_json(), "application/json")),
+            *[
+                (
+                    "artifacts",
+                    (
+                        artifact.path,
+                        artifact.content,
+                        artifact.media_type,
+                        {"X-Artifact-Role": artifact.role},
+                    ),
+                )
+                for artifact in artifacts
+            ],
+        ]
         response = self.client.post(
             f"{self.endpoint}/v1/bundles",
-            content=bundle.canonical_json(),
-            headers={
-                "Content-Type": "application/json",
-                "Idempotency-Key": bundle.idempotency_key,
-            },
+            files=files,
+            headers={"Idempotency-Key": bundle.idempotency_key},
         )
         response.raise_for_status()
         payload = response.json()

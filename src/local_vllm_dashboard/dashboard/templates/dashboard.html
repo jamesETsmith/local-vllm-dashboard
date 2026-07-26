@@ -43,12 +43,6 @@
             {% for value in data.options.models %}<option {{ 'selected' if filters.model == value else '' }}>{{ value }}</option>{% endfor %}
           </select>
         </label>
-        <label>Workload
-          <select name="workload">
-            <option value="">All</option>
-            {% for value in data.options.workloads %}<option {{ 'selected' if filters.workload == value else '' }}>{{ value }}</option>{% endfor %}
-          </select>
-        </label>
         {% if tab == 'performance' %}
           <label>Input tokens
             <select name="input_tokens"><option value="">All</option>{% for value in data.options.input_tokens %}<option {{ 'selected' if filters.input_tokens == value else '' }}>{{ value }}</option>{% endfor %}</select>
@@ -78,6 +72,7 @@
               <div class="chart-y-label">Total token throughput / GPU</div>
               <div class="chart-area">
                 <svg id="performance-chart" role="img" aria-label="Total token throughput per GPU by concurrency"></svg>
+                <div class="chart-tooltip" id="performance-chart-tooltip"></div>
                 <div class="chart-x-label">Concurrency</div>
               </div>
               <div class="chart-legend" id="performance-chart-legend"></div>
@@ -91,7 +86,7 @@
           {% if data.performance %}
             <div class="table-wrap"><table>
               <thead><tr><th>Completed</th><th>Hardware</th><th>Model / workload</th><th>Settings</th><th>Metrics</th><th>Requests</th></tr></thead>
-              <tbody>{% for row in data.performance %}<tr>
+              <tbody>{% for row in data.performance %}<tr class="run-row" data-href="{{ request.scope.get('root_path', '') }}/runs/{{ row.bundle_id }}" title="{{ row.hardware }} · {{ row.model }} · ISL {{ row.input_tokens or '?' }} · OSL {{ row.output_tokens or '?' }} · Prefix {{ row.prefix_cache_tokens or 0 }} · Concurrency {{ row.concurrency or '?' }}">
                 <td><time>{{ row.completed_at.strftime('%Y-%m-%d %H:%M') }}</time></td>
                 <td><strong>{{ row.hardware }}</strong><small>{{ row.accelerator_count }} GPU{% if row.accelerator_count != 1 %}s{% endif %}</small></td>
                 <td><strong>{{ row.model }}</strong><small>{{ row.workload }}</small></td>
@@ -108,7 +103,7 @@
           {% if data.accuracy %}
             <div class="table-wrap"><table>
               <thead><tr><th>Completed</th><th>Model / workload</th><th>Task</th><th>Configuration</th><th>Scores</th></tr></thead>
-              <tbody>{% for row in data.accuracy %}<tr>
+              <tbody>{% for row in data.accuracy %}<tr class="run-row" data-href="{{ request.scope.get('root_path', '') }}/runs/{{ row.bundle_id }}" title="{{ row.hardware }} · {{ row.model }} · Task {{ row.task }} · {{ row.fewshot }}-shot">
                 <td>{{ row.completed_at.strftime('%Y-%m-%d %H:%M') }}</td>
                 <td><strong>{{ row.model }}</strong><small>{{ row.workload }} · {{ row.hardware }}</small></td>
                 <td><strong>{{ row.task }}</strong></td>
@@ -124,7 +119,7 @@
           {% if data.runs %}
             <div class="table-wrap"><table>
               <thead><tr><th>Accepted</th><th>Workload</th><th>Environment</th><th>vLLM</th><th>Source</th><th>Bundle</th></tr></thead>
-              <tbody>{% for row in data.runs %}<tr>
+              <tbody>{% for row in data.runs %}<tr class="run-row" data-href="{{ request.scope.get('root_path', '') }}/runs/{{ row.bundle_id }}" title="{{ row.hardware }} · {{ row.accelerator_count }} GPU · {{ row.model }} · {{ row.vllm_image or row.vllm_commit or 'unknown vLLM version' }}">
                 <td>{{ row.accepted_at.strftime('%Y-%m-%d %H:%M') }}</td>
                 <td><strong>{{ row.workload }}</strong><small>{{ row.model }}</small></td>
                 <td><strong>{{ row.hardware }}</strong><small>{{ row.accelerator_count }} GPU{% if row.accelerator_count != 1 %}s{% endif %}</small></td>
@@ -136,6 +131,7 @@
           {% else %}<div class="empty"><h3>No runs</h3><p>Adjust the filters or publish a canonical bundle.</p></div>{% endif %}
         </section>
       {% endif %}
+      <script src="{{ request.scope.get('root_path', '') }}/static/run-links.js" defer></script>
     </main>
   </body>
 </html>

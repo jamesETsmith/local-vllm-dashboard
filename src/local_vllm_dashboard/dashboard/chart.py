@@ -10,6 +10,12 @@ class ChartPoint:
     concurrency: int
     throughput: float
     completed_at: str
+    bundle_id: str
+    hardware: str
+    model: str
+    precision: str | None
+    completed_requests: int | None
+    failed_requests: int | None
 
 
 @dataclass(frozen=True)
@@ -41,6 +47,12 @@ def performance_chart(rows: tuple[PerformanceView, ...]) -> tuple[ChartSeries, .
                 concurrency=row.concurrency,
                 throughput=throughput,
                 completed_at=row.completed_at.isoformat(),
+                bundle_id=str(row.bundle_id),
+                hardware=row.hardware,
+                model=row.model,
+                precision=row.precision,
+                completed_requests=row.completed_requests,
+                failed_requests=row.failed_requests,
             )
         )
     return tuple(

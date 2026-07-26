@@ -7,6 +7,7 @@ from sqlalchemy.pool import StaticPool
 
 from local_vllm_dashboard.adapter import build_accuracy_bundle, build_performance_bundle
 from local_vllm_dashboard.api import Settings, create_app
+from local_vllm_dashboard.artifacts import artifact_contents
 from local_vllm_dashboard.db import Base, BundleRepository, make_session_factory
 
 FIXTURES = Path(__file__).parents[1] / "fixtures" / "perf_eval"
@@ -22,19 +23,23 @@ def dashboard_client(*, populated: bool = True) -> TestClient:
     factory = make_session_factory(engine)
     if populated:
         with factory() as session:
+            recipe = FIXTURES / "prefix_cache_workload.yaml"
+            result = FIXTURES / "prefix_cache_partial_failure_bench.json"
+            performance = build_performance_bundle(recipe, result)
             BundleRepository(session).save(
-                build_performance_bundle(
-                    FIXTURES / "prefix_cache_workload.yaml",
-                    FIXTURES / "prefix_cache_partial_failure_bench.json",
-                )
+                performance,
+                artifact_contents(performance, (recipe, result)),
+            )
+            accuracy_result = FIXTURES / "lm_eval_results.json"
+            accuracy = build_accuracy_bundle(
+                recipe,
+                accuracy_result,
+                task="gsm8k",
+                completed_at=datetime(2026, 7, 23, tzinfo=UTC),
             )
             BundleRepository(session).save(
-                build_accuracy_bundle(
-                    FIXTURES / "prefix_cache_workload.yaml",
-                    FIXTURES / "lm_eval_results.json",
-                    task="gsm8k",
-                    completed_at=datetime(2026, 7, 23, tzinfo=UTC),
-                )
+                accuracy,
+                artifact_contents(accuracy, (recipe, accuracy_result)),
             )
     app = create_app(Settings(database_url="sqlite+pysqlite:///:memory:"), factory)
     return TestClient(app)
@@ -84,6 +89,31 @@ def test_runs_dashboard_renders_provenance() -> None:
     assert "Runs &amp; Data" in response.text
     assert "example-registry/vllm-openai:test" in response.text
     assert "artifact references" in response.text
+    assert 'class="run-row"' in response.text
+    assert "run-links.js" in response.text
+
+
+def test_run_detail_renders_full_configuration() -> None:
+    with dashboard_client() as client:
+        dashboard = client.get("/dashboard/")
+        marker = 'data-href="/dashboard/runs/'
+        bundle_id = dashboard.text.split(marker, 1)[1].split('"', 1)[0]
+        response = client.get(f"/dashboard/runs/{bundle_id}")
+
+    assert response.status_code == 200
+    assert "Run provenance" in response.text
+    assert "&#34;max_concurrency&#34;: 4" in response.text
+    assert "&#34;prefix_cache_tokens&#34;: 40000" in response.text
+    assert "Complete submitted bundle" in response.text
+    assert "perf-eval workload YAML" in response.text
+    assert "Transformed / extracted source data" in response.text
+    assert "prefix_cache_workload.yaml" in response.text
+    assert "Run with perf-eval" in response.text
+    assert "lib/run.sh" in response.text
+    assert "prefix_cache_workload.yaml" in response.text
+    assert "Copy to clipboard" in response.text
+    assert "highlighted-code" in response.text
+    assert "copy-code.js" in response.text
 
 
 def test_dashboard_preserves_filters_in_rendered_form() -> None:
@@ -93,6 +123,7 @@ def test_dashboard_preserves_filters_in_rendered_form() -> None:
     assert response.status_code == 200
     assert "<option selected>MI355X</option>" in response.text
     assert "<option selected>4</option>" in response.text
+    assert 'name="workload"' not in response.text
 
 
 def test_dashboard_has_clear_empty_state() -> None:

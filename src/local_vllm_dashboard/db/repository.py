@@ -3,12 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
+from pathlib import Path
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from local_vllm_dashboard.artifacts import ArtifactContent
 from local_vllm_dashboard.contracts import Bundle
 from local_vllm_dashboard.db.models import (
     ArtifactRecord,
@@ -37,7 +39,11 @@ class BundleRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
-    def save(self, bundle: Bundle) -> SaveResult:
+    def save(
+        self,
+        bundle: Bundle,
+        artifacts: tuple[ArtifactContent, ...] = (),
+    ) -> SaveResult:
         existing = self.session.scalar(
             select(BundleRecord).where(BundleRecord.idempotency_key == bundle.idempotency_key)
         )
@@ -54,12 +60,17 @@ class BundleRepository:
             payload=bundle.model_dump(mode="json"),
             artifacts=[
                 ArtifactRecord(
-                    path=artifact.path,
-                    role=artifact.role,
-                    size_bytes=artifact.size_bytes,
-                    digest=artifact.digest,
+                    path=declaration.path,
+                    role=declaration.role,
+                    media_type=artifact.media_type,
+                    size_bytes=declaration.size_bytes,
+                    digest=declaration.digest,
+                    content=artifact.content,
                 )
-                for artifact in bundle.run.source.artifacts
+                for declaration in bundle.run.source.artifacts
+                for artifact in artifacts
+                if Path(artifact.path).name == Path(declaration.path).name
+                and artifact.role == declaration.role
             ],
             observations=[
                 ObservationRecord(

@@ -2,7 +2,8 @@
   const payload = document.getElementById("performance-chart-data");
   const chart = document.getElementById("performance-chart");
   const legend = document.getElementById("performance-chart-legend");
-  if (!payload || !chart || !legend) return;
+  const tooltip = document.getElementById("performance-chart-tooltip");
+  if (!payload || !chart || !legend || !tooltip) return;
 
   const series = JSON.parse(payload.textContent || "[]");
   const colors = ["#7559f2", "#3bbf8a", "#ff9f43", "#e5576d", "#3f8cff", "#9a63d8"];
@@ -24,9 +25,20 @@
     Object.entries(attributes).forEach(([key, value]) => node.setAttribute(key, String(value)));
     return node;
   };
+  const hideTooltip = () => tooltip.classList.remove("visible");
+  const showTooltip = (event, trace, point) => {
+    const completed = point.completed_requests ?? "?";
+    const failed = point.failed_requests ?? "?";
+    tooltip.innerHTML = `<b>${trace.label}</b><span>${point.model}</span><span>${point.hardware}${point.precision ? ` · ${point.precision}` : ""}</span><span>Concurrency ${point.concurrency} · ${point.throughput.toFixed(2)} token/s/GPU</span><span>${completed} completed · ${failed} failed</span><small>Click for the full run configuration</small>`;
+    const bounds = chart.parentElement.getBoundingClientRect();
+    tooltip.style.left = `${Math.min(event.clientX - bounds.left + 14, bounds.width - 290)}px`;
+    tooltip.style.top = `${Math.max(event.clientY - bounds.top - 45, 8)}px`;
+    tooltip.classList.add("visible");
+  };
 
   chart.setAttribute("viewBox", `0 0 ${width} ${height}`);
   chart.setAttribute("preserveAspectRatio", "xMidYMid meet");
+  chart.addEventListener("mouseleave", hideTooltip);
 
   for (let index = 0; index <= 4; index += 1) {
     const value = (yMax / 4) * index;
@@ -46,13 +58,18 @@
 
   series.forEach((trace, index) => {
     const color = colors[index % colors.length];
-    const coordinates = trace.points.map((point) => `${xScale(point.concurrency)},${yScale(point.throughput)}`).join(" ");
-    chart.appendChild(element("polyline", { points: coordinates, fill: "none", stroke: color, class: "chart-line" }));
     trace.points.forEach((point) => {
-      const dot = element("circle", { cx: xScale(point.concurrency), cy: yScale(point.throughput), r: 5, fill: color, class: "chart-dot" });
-      const title = element("title");
-      title.textContent = `${trace.label}\nConcurrency ${point.concurrency}\n${point.throughput.toFixed(2)} token/s/GPU`;
-      dot.appendChild(title);
+      const dot = element("circle", { cx: xScale(point.concurrency), cy: yScale(point.throughput), r: 7, fill: color, class: "chart-dot", tabindex: 0, role: "link" });
+      const open = () => window.location.assign(`runs/${point.bundle_id}`);
+      dot.addEventListener("mouseenter", (event) => showTooltip(event, trace, point));
+      dot.addEventListener("mousemove", (event) => showTooltip(event, trace, point));
+      dot.addEventListener("focus", (event) => showTooltip(event, trace, point));
+      dot.addEventListener("mouseleave", hideTooltip);
+      dot.addEventListener("blur", hideTooltip);
+      dot.addEventListener("click", open);
+      dot.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") open();
+      });
       chart.appendChild(dot);
     });
     const item = document.createElement("div");

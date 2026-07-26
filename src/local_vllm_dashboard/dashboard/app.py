@@ -1,8 +1,9 @@
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Annotated, Literal
+from uuid import UUID
 
-from fastapi import Depends, FastAPI, Query, Request
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -40,7 +41,6 @@ def create_dashboard_app(factory: sessionmaker[Session]) -> FastAPI:
         tab: Literal["performance", "accuracy", "runs"] = "performance",
         hardware: Annotated[str | None, Query()] = None,
         model: Annotated[str | None, Query()] = None,
-        workload: Annotated[str | None, Query()] = None,
         input_tokens: Annotated[str | None, Query()] = None,
         output_tokens: Annotated[str | None, Query()] = None,
         concurrency: Annotated[str | None, Query()] = None,
@@ -50,7 +50,6 @@ def create_dashboard_app(factory: sessionmaker[Session]) -> FastAPI:
         filters = DashboardFilters(
             hardware=hardware or None,
             model=model or None,
-            workload=workload or None,
             input_tokens=optional_int(input_tokens),
             output_tokens=optional_int(output_tokens),
             concurrency=optional_int(concurrency),
@@ -70,5 +69,16 @@ def create_dashboard_app(factory: sessionmaker[Session]) -> FastAPI:
                 "performance_chart_json": chart_json_data(chart),
             },
         )
+
+    @app.get("/runs/{bundle_id}", response_class=HTMLResponse, name="run-detail")
+    def run_detail(
+        request: Request,
+        bundle_id: UUID,
+        session: Annotated[Session, Depends(get_session)],
+    ) -> HTMLResponse:
+        detail = DashboardRepository(session).detail(bundle_id)
+        if detail is None:
+            raise HTTPException(status_code=404, detail="run not found")
+        return TEMPLATES.TemplateResponse(request, "run-detail.html", {"detail": detail})
 
     return app

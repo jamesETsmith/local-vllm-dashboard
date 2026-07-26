@@ -45,3 +45,5 @@ def test_chart_groups_by_token_and_prefix_configuration() -> None:
         "ISL 50000 · OSL 1000 · Prefix 40000",
     ]
     assert [point.concurrency for point in chart[1].points] == [2, 8]
+    assert chart[1].points[0].bundle_id == str(UUID(int=2))
+    assert chart[1].points[0].model == "example/model"

@@ -7,7 +7,6 @@ from uuid import UUID
 class DashboardFilters:
     hardware: str | None = None
     model: str | None = None
-    workload: str | None = None
     input_tokens: int | None = None
     output_tokens: int | None = None
     concurrency: int | None = None
@@ -19,7 +18,6 @@ class DashboardFilters:
 class FilterOptions:
     hardware: tuple[str, ...] = ()
     models: tuple[str, ...] = ()
-    workloads: tuple[str, ...] = ()
     input_tokens: tuple[int, ...] = ()
     output_tokens: tuple[int, ...] = ()
     concurrencies: tuple[int, ...] = ()
@@ -80,6 +78,33 @@ class RunView:
     runner_kind: str
     observation_count: int
     artifact_count: int
+
+
+@dataclass(frozen=True)
+class SourceArtifactView:
+    path: str
+    role: str
+    title: str
+    description: str
+    media_type: str
+    size_bytes: int
+    digest: str
+    text: str
+    highlighted_html: str
+
+
+@dataclass(frozen=True)
+class RunDetailView:
+    run: RunView
+    reproduction_command: str | None
+    reproduction_command_html: str | None
+    payload_json: str
+    payload_json_html: str
+    configuration_json: tuple[str, ...]
+    subject_json: tuple[str, ...]
+    source_json: tuple[str, ...]
+    metrics: tuple[tuple[MetricView, ...], ...]
+    artifacts: tuple[SourceArtifactView, ...]
 
 
 @dataclass(frozen=True)
