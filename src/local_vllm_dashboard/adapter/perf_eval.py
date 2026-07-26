@@ -113,6 +113,7 @@ def build_performance_bundle(
     recipe = load_mapping(recipe_path)
     result = load_mapping(result_path)
     config = find_bench_config(recipe, result)
+    config_args = config.get("args", {})
     vllm = recipe["vllm"]
     bench_metadata = recipe.get("vllm_bench", {}).get("metadata", {})
     parallelism = int(bench_metadata["tp"])
@@ -174,6 +175,7 @@ def build_performance_bundle(
                     "output_tokens": int(config["output_len"]),
                     "num_prompts": int(config["num_prompts"]),
                     "max_concurrency": int(config["max_concurrency"]),
+                    "prefix_cache_tokens": int(config_args.get("prefix_repetition_prefix_len", 0)),
                     "completed": int(result["completed"]),
                     "failed": int(result["failed"]),
                 },

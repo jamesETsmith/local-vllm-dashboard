@@ -3,7 +3,17 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    LargeBinary,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -36,8 +46,10 @@ class ArtifactRecord(Base):
     bundle_id: Mapped[UUID] = mapped_column(ForeignKey("bundles.bundle_id"), nullable=False)
     path: Mapped[str] = mapped_column(Text, nullable=False)
     role: Mapped[str] = mapped_column(String(64), nullable=False)
+    media_type: Mapped[str] = mapped_column(String(128), nullable=False)
     size_bytes: Mapped[int] = mapped_column(nullable=False)
     digest: Mapped[str] = mapped_column(String(71), nullable=False)
+    content: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     bundle: Mapped[BundleRecord] = relationship(back_populates="artifacts")
 
 

@@ -19,6 +19,7 @@ def test_build_performance_bundle_from_real_shape() -> None:
     assert bundle.environment.accelerator == "MI355X"
     assert bundle.observations[0].configuration["completed"] == 1
     assert bundle.observations[0].configuration["failed"] == 39
+    assert bundle.observations[0].configuration["prefix_cache_tokens"] == 40000
     metrics = {metric.name: metric for metric in bundle.observations[0].metrics}
     assert metrics[MetricName.MEAN_TTFT].value == 0.24936232599429786
     total = metrics[MetricName.TOTAL_TOKEN_THROUGHPUT_PER_GPU]

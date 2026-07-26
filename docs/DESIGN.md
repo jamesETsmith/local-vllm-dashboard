@@ -4,7 +4,7 @@
 
 ## 1. Purpose
 
-This project is a benchmark-results platform for runs produced by [vllm-project/perf-eval](https://github.com/vllm-project/perf-eval). It standardizes performance, accuracy, and function-calling evaluation results on the benchmark host, stores the transformed observations and their provenance, and presents them in a dashboard. Raw source artifacts remain on the benchmark host.
+This project is a benchmark-results platform for runs produced by [vllm-project/perf-eval](https://github.com/vllm-project/perf-eval). It standardizes performance, accuracy, and function-calling evaluation results on the benchmark host, stores the transformed observations and selected immutable source artifacts, and presents them in a dashboard.
 
 The platform is deliberately not a benchmark runner. `perf-eval` remains responsible for selecting workloads, provisioning and serving vLLM, executing benchmarks, and producing artifacts. This platform begins when a completed run's artifacts are available.
 
@@ -12,7 +12,7 @@ The platform is deliberately not a benchmark runner. `perf-eval` remains respons
 
 1. Accept standardized benchmark results over a network without granting clients database access.
 2. Separate source-specific extraction, canonicalization, transport, persistence, and presentation into independently replaceable modules.
-3. Preserve the transformed observations and enough provenance to reproduce or correctly interpret every displayed value, while retaining raw source artifacts on the benchmark host.
+3. Preserve transformed observations and selected original workload/result files so displayed values can be interpreted and reproduced.
 4. Store a stable, versioned canonical result representation independent of `perf-eval`'s internal file paths, field names, and endpoint behavior.
 5. Support local individual workflows first, then shared team and CI workflows without changing the client-to-server contract.
 6. Facilitate clear comparisons across workloads, vLLM versions, and benchmark settings.
@@ -22,9 +22,9 @@ The platform is deliberately not a benchmark runner. `perf-eval` remains respons
 
 1. Reimplement `perf-eval`, vLLM, lm-evaluation-harness, BFCL, Buildkite, or GPU orchestration.
 2. Require the dashboard, database, or full server application on benchmark hosts.
-3. Transfer or centrally store raw `perf-eval` artifacts in the initial scope.
+3. Transfer large sample-level outputs, logs, model data, or arbitrary files from the benchmark host in the initial artifact scope.
 4. Rewrite historical transformed observations to match future schema revisions.
-5. Store secrets, credentials, or unredacted environment variables in result metadata.
+5. Store secrets, credentials, or unredacted environment variables in result metadata or artifacts.
 
 ## 4. Architecture principles
 
@@ -37,7 +37,7 @@ PERF-EVAL MACHINE                                      DB / SERVICE MACHINE
 -----------------                                      ---------------------
 perf-eval artifacts
   -> source adapter
-  -> canonical bundle
+  -> canonical bundle + selected immutable artifacts
   -> publisher
   -> HTTPS ingestion API                               -> operational database
                                                        -> dashboard server
@@ -57,7 +57,7 @@ Each boundary is a serialized, versioned contract with documented compatibility 
 
 ### 4.3 Immutable facts, replaceable projections
 
-The service stores submitted canonical bundles and their standardized observations as immutable facts. Dashboard-specific query rows are replaceable projections derived from those facts. If projection logic changes, it is recomputed rather than mutating the recorded observation.
+The service stores submitted canonical bundles, standardized observations, and selected original artifact bytes as immutable facts. Dashboard-specific query rows are replaceable projections derived from those facts. If projection logic changes, it is recomputed rather than mutating the recorded observation or artifact.
 
 ### 4.4 No shared database access from clients
 
@@ -69,9 +69,9 @@ Only server-side services connect to the database. The initial deployment is res
 | --- | --- | --- | --- |
 | `source-adapter-perf-eval` | Discovering and reading known `perf-eval` output files; producing a canonical bundle | `perf-eval` artifacts, canonical contract | publisher internals, API implementation, database, UI |
 | `contracts` | Canonical bundle schema, API schema, metric vocabulary, schema compatibility fixtures | schema validation library only | adapters, storage engine, UI |
-| `publisher` | Validating, spooling, retrying, and sending one canonical bundle request | contracts, HTTP client, local filesystem | artifact parsers, server database, UI |
-| `ingestion-api` | Contract validation, idempotency, and durable acceptance | contracts, database interface | `perf-eval` parser, dashboard logic, UI |
-| `result-store` | Transactional records and normalized canonical observations | database engine, contracts | source file formats, UI |
+| `publisher` | Validating, spooling, retrying, and sending one canonical bundle plus selected immutable attachments | contracts, HTTP client, local filesystem | artifact parsers, server database, UI |
+| `ingestion-api` | Contract validation, attachment digest/size validation, idempotency, and durable acceptance | contracts, database interface | `perf-eval` parser, dashboard logic, UI |
+| `result-store` | Transactional records, normalized canonical observations, and immutable selected artifact bytes | database engine, contracts | source parsing, UI |
 | `dashboard` | Server-rendered human views, filtering, and visualization | result store, database interface | `perf-eval` formats, ingestion write paths |
 | `mcp-server` | Later machine-readable discovery and query tools | result store, database interface | `perf-eval` formats, ingestion write paths, dashboard presentation |
 
@@ -94,7 +94,7 @@ No upstream changes are required for the first version. A later optional upstrea
 
 ### 7.1 Bundle purpose
 
-A canonical bundle is the sole write payload accepted by the publisher and ingestion API. It represents one completed attempt to execute one benchmark workload. It contains standardized observations and provenance, with no database-specific identifiers or raw artifact bytes.
+A canonical bundle is the sole semantic write payload accepted by the publisher and ingestion API. It represents one completed attempt to execute one benchmark workload. It contains standardized observations, provenance, and attachment declarations with no database-specific identifiers. Selected original artifact bytes travel beside the bundle in the same request and are not interpreted as canonical fields.
 
 ### 7.2 Envelope
 
@@ -167,9 +167,11 @@ Supported v1 kinds are `performance`, `accuracy`, and `function_calling`. Metric
 
 Accuracy observations identify evaluation task, task configuration such as few-shot count, score name, score value, optional standard error, and whether the result is partial. Sample-level outputs are artifacts, not rows in the primary dashboard query model.
 
-### 7.6 Raw artifact provenance
+### 7.6 Immutable source artifacts
 
-Raw `perf-eval` files are retained on the benchmark host and are not transmitted in v1. The bundle records source artifact metadata needed for traceability: relative path, content role, byte size, and SHA-256 digest. The source adapter may include this metadata in its namespaced source extension, but the server treats it as provenance only and does not fetch or store the file.
+The client attaches selected original `perf-eval` files unchanged: the workload YAML and the corresponding benchmark or lm-eval result JSON. Each declaration includes a logical role, safe filename, media type, byte size, and SHA-256 digest. The ingestion server verifies the declared size and digest, stores the bytes immutably, and never parses them to produce canonical observations. The dashboard may display or download these artifacts as reproduction evidence.
+
+Sample JSONL files, logs, model data, and arbitrary additional files are excluded initially. Attachment count, individual size, and total request size are bounded. Clients must not submit secrets or unredacted sensitive configuration.
 
 ## 8. Publishing protocol
 
@@ -193,13 +195,13 @@ The combined command is composition only. It preserves the explicit intermediate
 
 ### 8.2 API lifecycle
 
-1. Client reads and transforms local `perf-eval` artifacts into a canonical bundle, recording raw artifact provenance but retaining the files locally.
-2. Client validates the canonical bundle locally.
-3. Client sends the transformed bundle in one `POST /v1/bundles` request with an `Idempotency-Key` header.
-4. Server validates the schema, size limit, and idempotency key, then atomically persists the bundle and observations as `accepted` and queues dashboard projections.
-5. Server returns the accepted bundle ID or a machine-readable validation error. The client may query `GET /v1/bundles/{bundle_id}` for persisted state.
+1. Client reads local `perf-eval` artifacts and transforms them into a canonical bundle.
+2. Client validates the bundle, selects the workload YAML and corresponding result JSON, and calculates attachment sizes and digests.
+3. Client sends one multipart `POST /v1/bundles` request containing the canonical bundle and selected unchanged attachments, with an `Idempotency-Key` header.
+4. Server validates the schema, attachment roles/media types, size limits, digests, and idempotency key, then atomically persists the bundle, observations, and attachments as `accepted`.
+5. Server returns the accepted bundle ID or a machine-readable validation error.
 
-The request contains no raw benchmark artifact bytes and requires no preliminary API request, upload URL, or finalization request.
+The request requires no preliminary API request, upload URL, finalization request, or server-side source parsing.
 
 ### 8.3 Retry and failure behavior
 
@@ -212,19 +214,19 @@ The request contains no raw benchmark artifact bytes and requires no preliminary
 
 ### 9.1 Logical stores
 
-The operational database is PostgreSQL in the initial deployment. PostgreSQL stores submitted bundle metadata, transformed observations, and dashboard query projections. Raw source artifacts remain on the benchmark host and are outside the database's storage responsibility.
+The operational database is PostgreSQL in the initial deployment. PostgreSQL stores submitted bundle metadata, transformed observations, selected immutable source artifacts, and dashboard query projections. This keeps the initial deployment simple; artifact storage may move behind a dedicated storage interface later without changing the client contract.
 
 | Data | Store | Mutability |
 | --- | --- | --- |
 | Submitted bundle metadata and validation state | PostgreSQL | Append-oriented state transitions |
 | Canonical observations and metric values | PostgreSQL | Immutable after acceptance |
-| Raw artifact provenance metadata | PostgreSQL | Immutable after acceptance |
+| Selected source artifact metadata and bytes | PostgreSQL | Immutable after acceptance |
 | Dashboard query rows and aggregates | PostgreSQL | Rebuildable projections |
 
 ### 9.2 Core relational entities
 
 - `bundle`: submission metadata, schema version, idempotency key, state, provenance, timestamps, and source identity.
-- `raw_artifact_provenance`: role, relative path, byte size, and digest for a raw file retained by the benchmark host.
+- `source_artifact`: logical role, safe filename, media type, byte size, digest, and immutable bytes for a selected original file.
 - `observation`: immutable canonical measurement with kind, configuration JSON, subject JSON, and source provenance.
 - `metric_value`: typed, unit-bearing metric values associated with an observation.
 - `projection_revision`: tracks the code/schema revision used to derive query rows.
@@ -233,7 +235,7 @@ The exact physical schema may evolve, but it must preserve this ownership model 
 
 ### 9.3 Atomicity
 
-The single ingestion request creates the accepted bundle, raw artifact provenance, observations, and metric values in one database transaction. A worker is notified through a transactional outbox written in the same transaction. This prevents a dashboard from seeing partially persisted results and prevents lost projection work when a process crashes.
+The single ingestion request creates the accepted bundle, source artifacts, observations, and metric values in one database transaction. This prevents the dashboard from seeing a bundle without its declared reproduction evidence or seeing partially persisted observations.
 
 ## 10. Standardization and normalization rules
 
@@ -242,16 +244,16 @@ The single ingestion request creates the accepted bundle, raw artifact provenanc
 The `perf-eval` adapter maps known source fields to canonical values. It must:
 
 1. Record source file paths only as informational metadata, never as stable IDs.
-2. Convert units explicitly and record the raw file digest and role as provenance.
+2. Convert units explicitly and declare selected source files with digest, size, media type, and role.
 3. Capture the exact adapter version and source format assumptions.
 4. Fail clearly when required metadata is absent rather than silently guessing.
-5. Keep source-specific fields in namespaced extension data; retain the corresponding raw artifacts on the benchmark host.
+5. Keep source-specific fields in namespaced extension data and attach the unchanged selected originals separately.
 
-For example, a raw `mean_ttft_ms` becomes `mean_ttft` with unit `s`; the original field remains in the local raw benchmark JSON and its digest is recorded with the submission. Throughput is initially stored as the benchmark-reported aggregate throughput. Per-accelerator throughput is a derived metric only when the relevant denominator is explicitly known.
+For example, a raw `mean_ttft_ms` becomes `mean_ttft` with unit `s`; the original field remains in the attached benchmark JSON. Throughput is normalized per accelerator when the relevant denominator is explicitly known.
 
 ### 10.2 Server responsibilities
 
-The ingestion server validates the canonical schema, allowed units and metric names, idempotency key, and request size, then stores transformed facts. It does not fetch, verify, or reinterpret local `perf-eval` source artifacts, and it does not apply performance-dashboard-specific transformations.
+The ingestion server validates the canonical schema, allowed units and metric names, idempotency key, request size, and attachment integrity, then stores transformed facts and immutable selected originals. It does not parse or reinterpret attached `perf-eval` files and does not apply performance-dashboard-specific transformations.
 
 ### 10.3 Dashboard derivation responsibilities
 
@@ -263,9 +265,9 @@ Phase 2 provides a simple server-rendered dashboard that reads PostgreSQL direct
 
 Initial views:
 
-1. **Performance:** per-GPU throughput and latency tables with hardware, model, workload, token-length, and concurrency filters.
-2. **Accuracy:** task scores with model, workload, task, and few-shot settings.
-3. **Runs and data:** compact run provenance and canonical observation details needed to understand displayed results.
+1. **Performance:** per-GPU throughput and latency tables with hardware, model, token-length, and concurrency filters.
+2. **Accuracy:** task scores with model, task, and few-shot settings.
+3. **Runs and data:** run provenance, canonical observation details, and selected original workload/result files needed to understand and reproduce displayed results.
 
 The ATOM benchmark dashboard is the interaction reference: a small number of tabs, centralized filter state, native tables, and charts only where they make comparisons clearer. The implementation remains server-rendered and progressively enhanced so Phase 2 does not require a separate browser application architecture.
 
@@ -291,8 +293,8 @@ Operational runbooks cover database backup/restore, failed-ingestion investigati
 
 1. Contract fixtures: versioned canonical bundles for valid, invalid, and forward-compatibility cases.
 2. Adapter golden tests: representative `perf-eval` fixture directories produce exact canonical bundles and raw-artifact provenance.
-3. Publisher tests: single-request retry, idempotency, request failure, and offline spool behavior.
-4. API tests: schema validation, duplicate submissions, size limits, and atomic persistence.
+3. Publisher tests: multipart submission, single-request retry, idempotency, request failure, and offline spool behavior.
+4. API tests: schema validation, attachment role/media/digest validation, duplicate submissions, size limits, and atomic persistence.
 5. Dashboard repository tests: filters correctly expose workloads, versions, and benchmark settings.
 6. Dashboard rendering tests: stored performance and accuracy observations appear in the expected views.
 7. End-to-end test: adapter fixture to publisher to local server to rendered dashboard.
@@ -325,9 +327,9 @@ Add an MCP server for machine-readable run discovery, filtering, and metric retr
 
 1. **Initial scope:** Begin with Phase 0 and Phase 1 only, supporting performance and lm-eval result artifacts first.
 2. **Infrastructure:** Use PostgreSQL and Docker Compose for local development.
-3. **Transport:** Send one unauthenticated `POST /v1/bundles` request over the trusted network. The request contains transformed data only.
-4. **Boundary:** Install the adapter/publisher on benchmark clients; run the full service stack only on the server side; clients have no database access.
-5. **Storage policy:** Retain raw artifacts on the benchmark host. Submitted canonical bundles and observations are immutable; dashboard projections are rebuildable.
+3. **Transport:** Send one unauthenticated multipart `POST /v1/bundles` request over the trusted network containing transformed data and selected unchanged source attachments.
+4. **Boundary:** Install the adapter/publisher on benchmark clients; run the full service stack only on the server side; clients have no database access; servers do not parse attached source files.
+5. **Storage policy:** Submitted canonical bundles, observations, and selected original workload/result files are immutable; dashboard projections are rebuildable; large or arbitrary artifacts remain on the benchmark host.
 6. **Schema policy:** Start with a simple canonical v1 schema, then iteratively extend it as concrete inputs and dashboard needs emerge. Schema changes remain explicit, versioned, and covered by fixtures; a new major version is reserved for incompatible changes.
 
 ## 17. Approval status

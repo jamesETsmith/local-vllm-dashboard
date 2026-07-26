@@ -3,6 +3,7 @@ from pathlib import Path
 
 from local_vllm_dashboard.adapter import build_performance_bundle
 from local_vllm_dashboard.api import Settings
+from local_vllm_dashboard.artifacts import artifact_contents
 from local_vllm_dashboard.contracts import Bundle
 from local_vllm_dashboard.db import initialize_schema, make_engine
 from local_vllm_dashboard.publisher import Publisher
@@ -19,6 +20,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     publish = commands.add_parser("publish")
     publish.add_argument("--bundle", type=Path, required=True)
+    publish.add_argument("--artifact", type=Path, action="append", default=[])
     publish.add_argument("--endpoint", required=True)
 
     adapt_publish = commands.add_parser("adapt-and-publish")
@@ -41,10 +43,12 @@ def main() -> None:
         return
     if args.command == "publish":
         bundle = Bundle.model_validate_json(args.bundle.read_bytes())
+        artifacts = artifact_contents(bundle, tuple(args.artifact))
     else:
         bundle = build_performance_bundle(args.recipe, args.result)
+        artifacts = artifact_contents(bundle, (args.recipe, args.result))
     with Publisher(args.endpoint) as publisher:
-        result = publisher.publish(bundle)
+        result = publisher.publish(bundle, artifacts)
     print(f"{result.status}: {result.bundle_id}")
 
 

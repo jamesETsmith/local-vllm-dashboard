@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Run {{ detail.run.bundle_id }} · vLLM Results</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
+    <link rel="stylesheet" href="{{ request.scope.get('root_path', '') }}/static/dashboard.css">
+  </head>
+  <body>
+    <header class="shell detail-header">
+      <a class="back-link" href="{{ request.scope.get('root_path', '') }}/">← Back to dashboard</a>
+      <p class="eyebrow">Run detail</p>
+      <h1>{{ detail.run.workload }}</h1>
+      <p class="lede">{{ detail.run.model }} on {{ detail.run.accelerator_count }} × {{ detail.run.hardware }}</p>
+    </header>
+    <div class="shell detail-layout">
+      <main class="detail-grid">
+      <section id="summary" class="panel detail-summary">
+        <div class="section-heading"><div><p class="eyebrow">Summary</p><h2>Run provenance</h2></div></div>
+        <dl class="summary-grid">
+          <div><dt>Bundle</dt><dd><code>{{ detail.run.bundle_id }}</code></dd></div>
+          <div><dt>Completed</dt><dd>{{ detail.run.completed_at.strftime('%Y-%m-%d %H:%M:%S') }}</dd></div>
+          <div><dt>Accepted</dt><dd>{{ detail.run.accepted_at.strftime('%Y-%m-%d %H:%M:%S') }}</dd></div>
+          <div><dt>Runner</dt><dd>{{ detail.run.runner_kind }}</dd></div>
+          <div><dt>vLLM</dt><dd>{{ detail.run.vllm_image or detail.run.vllm_commit or 'unknown' }}</dd></div>
+          <div><dt>Artifacts</dt><dd>{{ detail.run.artifact_count }}</dd></div>
+        </dl>
+      </section>
+
+      <div id="perf-data" class="detail-section-heading">
+        <p class="eyebrow">Measured output</p>
+        <h2>Perf Data</h2>
+        <p>Prettified metrics and observation data extracted from the benchmark result.</p>
+      </div>
+      {% for configuration in detail.configuration_json %}
+        <section class="panel detail-card">
+          <div class="section-heading"><div><p class="eyebrow">Observation {{ loop.index }}</p><h3>Results and configuration</h3></div></div>
+          <div class="detail-metrics">
+            {% for metric in detail.metrics[loop.index0] %}<span><b>{{ '%.6g'|format(metric.value) }}</b> {{ metric.unit }}<small>{{ metric.name|replace('_', ' ') }} · {{ metric.aggregation }}</small></span>{% endfor %}
+          </div>
+          <details><summary>Show extracted observation data</summary><pre>{{ configuration }}</pre></details>
+          <div class="detail-columns">
+            <div><h3>Subject</h3><pre>{{ detail.subject_json[loop.index0] }}</pre></div>
+            <div><h3>Source</h3><pre>{{ detail.source_json[loop.index0] }}</pre></div>
+          </div>
+        </section>
+      {% endfor %}
+      {% for artifact in detail.artifacts if artifact.role != 'workload_recipe' %}
+        <section class="panel detail-card artifact-card">
+          <div class="section-heading"><div><p class="eyebrow">{{ artifact.title }}</p><h3>{{ artifact.path }}</h3></div><p>{{ artifact.description }} {{ artifact.media_type }} · {{ artifact.size_bytes }} bytes</p></div>
+          <div class="code-toolbar"><code>{{ artifact.digest }}</code><button class="copy-button" type="button" data-copy-target="artifact-perf-{{ loop.index }}">Copy to clipboard</button></div>
+          <pre id="artifact-perf-{{ loop.index }}" class="highlighted-code" data-raw-code="artifact-perf-raw-{{ loop.index }}"><code>{{ artifact.highlighted_html|safe }}</code></pre>
+          <textarea id="artifact-perf-raw-{{ loop.index }}" class="raw-code">{{ artifact.text }}</textarea>
+        </section>
+      {% endfor %}
+
+      <div id="reproduce-results" class="detail-section-heading">
+        <p class="eyebrow">Exact recipe</p>
+        <h2>Reproduce Results</h2>
+        <p>Copy the perf-eval workload into a checkout and run the command shown below.</p>
+      </div>
+      {% if detail.reproduction_command %}
+        <section class="panel detail-card artifact-card">
+          <div class="section-heading"><div><p class="eyebrow">Shell command</p><h3>Run with perf-eval</h3></div><p>Run from the perf-eval repository root after saving the YAML at its shown path.</p></div>
+          <div class="code-toolbar"><span>Command</span><button class="copy-button" type="button" data-copy-target="reproduction-command">Copy to clipboard</button></div>
+          <pre id="reproduction-command" class="highlighted-code"><code>{{ detail.reproduction_command_html|safe }}</code></pre>
+        </section>
+      {% endif %}
+      {% for artifact in detail.artifacts if artifact.role == 'workload_recipe' %}
+        <section class="panel detail-card artifact-card">
+          <div class="section-heading"><div><p class="eyebrow">{{ artifact.title }}</p><h3>{{ artifact.path }}</h3></div><p>{{ artifact.description }} {{ artifact.media_type }} · {{ artifact.size_bytes }} bytes</p></div>
+          <div class="code-toolbar"><code>{{ artifact.digest }}</code><button class="copy-button" type="button" data-copy-target="artifact-repro-{{ loop.index }}">Copy to clipboard</button></div>
+          <pre id="artifact-repro-{{ loop.index }}" class="highlighted-code" data-raw-code="artifact-repro-raw-{{ loop.index }}"><code>{{ artifact.highlighted_html|safe }}</code></pre>
+          <textarea id="artifact-repro-raw-{{ loop.index }}" class="raw-code">{{ artifact.text }}</textarea>
+        </section>
+      {% endfor %}
+
+      <div id="dashboard-info" class="detail-section-heading">
+        <p class="eyebrow">Platform metadata</p>
+        <h2>local-vllm-dashboard Info</h2>
+        <p>Canonical data and identifiers generated by local-vllm-dashboard.</p>
+      </div>
+      <section class="panel detail-card">
+        <div class="section-heading"><div><p class="eyebrow">Canonical bundle</p><h3>Complete submitted data</h3></div></div>
+        <details><summary>Show canonical JSON</summary><pre class="highlighted-code"><code>{{ detail.payload_json_html|safe }}</code></pre></details>
+      </section>
+      <script src="{{ request.scope.get('root_path', '') }}/static/copy-code.js" defer></script>
+      </main>
+      <aside class="detail-toc" aria-label="On this page">
+        <p>On this page</p>
+        <nav>
+          <a href="#summary">Summary</a>
+          <a href="#perf-data">Perf Data</a>
+          <a class="toc-emphasis" href="#reproduce-results">Reproduce Results</a>
+          <a href="#dashboard-info">local-vllm-dashboard Info</a>
+        </nav>
+      </aside>
+    </div>
+  </body>
+</html>

@@ -3,6 +3,7 @@ from pathlib import Path
 import httpx
 import pytest
 
+from local_vllm_dashboard.artifacts import ArtifactContent
 from local_vllm_dashboard.contracts import Bundle
 from local_vllm_dashboard.publisher import Publisher
 
@@ -26,12 +27,21 @@ def test_publisher_sends_one_request_with_idempotency_header() -> None:
     publisher.client.close()
     publisher.client = httpx.Client(transport=httpx.MockTransport(handle))
 
-    result = publisher.publish(bundle)
+    artifact = ArtifactContent(
+        path="result.json",
+        role="raw_bench_result",
+        media_type="application/json",
+        content=b"{}",
+    )
+    result = publisher.publish(bundle, (artifact,))
 
     assert result.status == "accepted"
     assert len(requests) == 1
     assert requests[0].url.path == "/v1/bundles"
     assert requests[0].headers["Idempotency-Key"] == bundle.idempotency_key
+    assert requests[0].headers["content-type"].startswith("multipart/form-data")
+    assert b"X-Artifact-Role: raw_bench_result" in requests[0].content
+    assert b'name="bundle"' in requests[0].content
 
 
 def test_publisher_rejects_mismatched_idempotency_key() -> None:
