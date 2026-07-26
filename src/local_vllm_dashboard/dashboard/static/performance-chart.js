@@ -6,7 +6,21 @@
   if (!payload || !chart || !legend || !tooltip) return;
 
   const series = JSON.parse(payload.textContent || "[]");
-  const colors = ["#7559f2", "#3bbf8a", "#ff9f43", "#e5576d", "#3f8cff", "#9a63d8"];
+  const fallbackColors = ["#7559f2", "#3f8cff", "#9a63d8", "#00a6a6", "#d14da5"];
+  const hardwareColors = {
+    H100: "#1b7f3a",
+    H200: "#2e9d50",
+    B200: "#52b96b",
+    B300: "#82cf8e",
+    MI300X: "#9f241f",
+    MI325X: "#bd3828",
+    MI350X: "#d75032",
+    MI355X: "#e96a3a",
+    MI450X: "#f18b45",
+    MI455X: "#f6aa57",
+  };
+  const discoveredHardware = [...new Set(series.map((trace) => trace.hardware))].sort();
+  const colorFor = (trace) => hardwareColors[trace.hardware.toUpperCase()] || fallbackColors[discoveredHardware.indexOf(trace.hardware) % fallbackColors.length];
   const width = 920;
   const height = 360;
   const margin = { top: 24, right: 26, bottom: 44, left: 72 };
@@ -56,8 +70,8 @@
     chart.appendChild(label);
   });
 
-  series.forEach((trace, index) => {
-    const color = colors[index % colors.length];
+  series.forEach((trace) => {
+    const color = colorFor(trace);
     trace.points.forEach((point) => {
       const dot = element("circle", { cx: xScale(point.concurrency), cy: yScale(point.throughput), r: 7, fill: color, class: "chart-dot", tabindex: 0, role: "link" });
       const open = () => window.location.assign(`runs/${point.bundle_id}`);

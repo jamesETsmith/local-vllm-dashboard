@@ -21,6 +21,7 @@ class ChartPoint:
 @dataclass(frozen=True)
 class ChartSeries:
     label: str
+    hardware: str
     points: tuple[ChartPoint, ...]
 
 
@@ -32,7 +33,7 @@ def workload_label(row: PerformanceView) -> str:
 
 
 def performance_chart(rows: tuple[PerformanceView, ...]) -> tuple[ChartSeries, ...]:
-    grouped: dict[str, list[ChartPoint]] = {}
+    grouped: dict[tuple[str, str], list[ChartPoint]] = {}
     for row in rows:
         if row.concurrency is None:
             continue
@@ -42,7 +43,7 @@ def performance_chart(rows: tuple[PerformanceView, ...]) -> tuple[ChartSeries, .
         )
         if throughput is None:
             continue
-        grouped.setdefault(workload_label(row), []).append(
+        grouped.setdefault((row.hardware, workload_label(row)), []).append(
             ChartPoint(
                 concurrency=row.concurrency,
                 throughput=throughput,
@@ -57,10 +58,11 @@ def performance_chart(rows: tuple[PerformanceView, ...]) -> tuple[ChartSeries, .
         )
     return tuple(
         ChartSeries(
-            label=label,
+            label=f"{hardware} · {label}",
+            hardware=hardware,
             points=tuple(sorted(points, key=lambda point: (point.concurrency, point.completed_at))),
         )
-        for label, points in sorted(grouped.items())
+        for (hardware, label), points in sorted(grouped.items())
     )
 
 

@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Any, cast
 from uuid import UUID
 
+import yaml
 from pygments import highlight
 from pygments.formatters.html import HtmlFormatter
 from pygments.lexers.data import JsonLexer, YamlLexer
@@ -65,6 +66,51 @@ def unique_sorted(values: Iterable[str | None]) -> tuple[str, ...]:
 
 def unique_sorted_int(values: Iterable[int | None]) -> tuple[int, ...]:
     return tuple(sorted({value for value in values if value is not None}))
+
+
+class LiteralBlockDumper(yaml.SafeDumper):
+    pass
+
+
+def literal_string_representer(dumper: yaml.SafeDumper, value: str) -> yaml.ScalarNode:
+    style = "|" if "\n" in value else None
+    return dumper.represent_scalar("tag:yaml.org,2002:str", value, style=style)
+
+
+LiteralBlockDumper.add_representer(str, literal_string_representer)
+
+
+def split_cli_flags(value: str) -> str:
+    parts = value.split()
+    lines = []
+    current = []
+    for part in parts:
+        if part.startswith("--") and current:
+            lines.append(" ".join(current))
+            current = [part]
+        else:
+            current.append(part)
+    if current:
+        lines.append(" ".join(current))
+    return "\n".join(lines)
+
+
+def pretty_artifact(code: str, media_type: str) -> str:
+    if media_type == "application/yaml":
+        value = yaml.safe_load(code)
+        if isinstance(value, dict):
+            vllm = value.get("vllm")
+            if isinstance(vllm, dict) and isinstance(vllm.get("serve_args"), str):
+                vllm["serve_args"] = split_cli_flags(vllm["serve_args"])
+        formatted = yaml.dump(
+            value,
+            Dumper=LiteralBlockDumper,
+            sort_keys=False,
+            default_flow_style=False,
+            width=1000,
+        )
+        return formatted.replace("serve_args: |-", "serve_args: >-")
+    return json.dumps(json.loads(code), indent=2, sort_keys=False) + "\n"
 
 
 def highlighted(code: str, media_type: str) -> str:
@@ -188,9 +234,15 @@ class DashboardRepository:
                     media_type=artifact.media_type,
                     size_bytes=artifact.size_bytes,
                     digest=artifact.digest,
-                    text=artifact.content.decode("utf-8"),
-                    highlighted_html=highlighted(
+                    text=pretty_artifact(
                         artifact.content.decode("utf-8"),
+                        artifact.media_type,
+                    ),
+                    highlighted_html=highlighted(
+                        pretty_artifact(
+                            artifact.content.decode("utf-8"),
+                            artifact.media_type,
+                        ),
                         artifact.media_type,
                     ),
                 )
@@ -276,6 +328,10 @@ class DashboardRepository:
             and (filters.model is None or view.model == filters.model)
             and (filters.input_tokens is None or view.input_tokens == filters.input_tokens)
             and (filters.output_tokens is None or view.output_tokens == filters.output_tokens)
+            and (
+                filters.prefix_cache_tokens is None
+                or view.prefix_cache_tokens == filters.prefix_cache_tokens
+            )
             and (filters.concurrency is None or view.concurrency == filters.concurrency)
             and (filters.precision is None or view.precision == filters.precision)
         )
@@ -308,6 +364,7 @@ class DashboardRepository:
             ),
             input_tokens=unique_sorted_int(view.input_tokens for view in performance),
             output_tokens=unique_sorted_int(view.output_tokens for view in performance),
+            prefix_cache_tokens=unique_sorted_int(view.prefix_cache_tokens for view in performance),
             concurrencies=unique_sorted_int(view.concurrency for view in performance),
             precisions=unique_sorted(view.precision for view in performance),
             tasks=unique_sorted(view.task for view in accuracy),

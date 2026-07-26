@@ -50,6 +50,9 @@
           <label>Output tokens
             <select name="output_tokens"><option value="">All</option>{% for value in data.options.output_tokens %}<option {{ 'selected' if filters.output_tokens == value else '' }}>{{ value }}</option>{% endfor %}</select>
           </label>
+          <label>Prefix cache
+            <select name="prefix_cache_tokens"><option value="">All</option>{% for value in data.options.prefix_cache_tokens %}<option value="{{ value }}" {{ 'selected' if filters.prefix_cache_tokens == value else '' }}>{{ value if value else 'Disabled' }}</option>{% endfor %}</select>
+          </label>
           <label>Concurrency
             <select name="concurrency"><option value="">All</option>{% for value in data.options.concurrencies %}<option {{ 'selected' if filters.concurrency == value else '' }}>{{ value }}</option>{% endfor %}</select>
           </label>

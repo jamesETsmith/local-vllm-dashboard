@@ -45,6 +45,7 @@ def test_repository_loads_all_dashboard_views() -> None:
     assert len(data.runs) == 2
     assert data.options.hardware == ("MI355X",)
     assert data.options.tasks == ("gsm8k",)
+    assert data.options.prefix_cache_tokens == (40000,)
     assert data.performance[0].failed_requests == 39
     assert data.accuracy[0].fewshot == 5
 
@@ -62,6 +63,14 @@ def test_repository_loads_full_run_detail() -> None:
     assert len(detail.metrics[0]) > 1
     assert len(detail.artifacts) == 2
     assert detail.artifacts[0].text
+    workload_artifact = next(
+        artifact for artifact in detail.artifacts if artifact.role == "workload_recipe"
+    )
+    assert "serve_args: >-" in workload_artifact.text
+    assert "    --tensor-parallel-size 4\n" in workload_artifact.text
+    assert "    --trust-remote-code\n" in workload_artifact.text
+    assert "    --max-model-len 65536\n" in workload_artifact.text
+    assert "50k-in-1k-out-40k-cached-conc-4" in workload_artifact.text
     assert {artifact.role for artifact in detail.artifacts} == {
         "raw_bench_result",
         "workload_recipe",
@@ -72,7 +81,9 @@ def test_repository_loads_full_run_detail() -> None:
 def test_repository_filters_performance_settings() -> None:
     repository = dashboard_repository()
 
-    matching = repository.load(DashboardFilters(hardware="MI355X", concurrency=4))
+    matching = repository.load(
+        DashboardFilters(hardware="MI355X", concurrency=4, prefix_cache_tokens=40000)
+    )
     missing = repository.load(DashboardFilters(hardware="H200"))
 
     assert len(matching.performance) == 1
@@ -80,6 +91,7 @@ def test_repository_filters_performance_settings() -> None:
     assert not missing.accuracy
     assert not missing.runs
     assert matching.options.hardware == ("MI355X",)
+    assert not repository.load(DashboardFilters(prefix_cache_tokens=0)).performance
 
 
 def test_repository_filters_accuracy_task() -> None:

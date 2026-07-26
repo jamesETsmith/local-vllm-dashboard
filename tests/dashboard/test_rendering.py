@@ -105,6 +105,10 @@ def test_run_detail_renders_full_configuration() -> None:
     assert "Perf Data" in response.text
     assert "Reproduce Results" in response.text
     assert "local-vllm-dashboard Info" in response.text
+    assert "On this page" in response.text
+    assert 'href="#perf-data"' in response.text
+    assert 'href="#reproduce-results"' in response.text
+    assert 'class="toc-emphasis"' in response.text
     assert "&#34;max_concurrency&#34;: 4" in response.text
     assert "&#34;prefix_cache_tokens&#34;: 40000" in response.text
     assert "Complete submitted data" in response.text
@@ -121,11 +125,13 @@ def test_run_detail_renders_full_configuration() -> None:
 
 def test_dashboard_preserves_filters_in_rendered_form() -> None:
     with dashboard_client() as client:
-        response = client.get("/dashboard/?hardware=MI355X&concurrency=4")
+        response = client.get("/dashboard/?hardware=MI355X&prefix_cache_tokens=40000&concurrency=4")
 
     assert response.status_code == 200
     assert "<option selected>MI355X</option>" in response.text
     assert "<option selected>4</option>" in response.text
+    assert 'name="prefix_cache_tokens"' in response.text
+    assert '<option value="40000" selected>40000</option>' in response.text
     assert 'name="workload"' not in response.text
 
 

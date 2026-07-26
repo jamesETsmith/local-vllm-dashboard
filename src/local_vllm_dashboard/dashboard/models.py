@@ -9,6 +9,7 @@ class DashboardFilters:
     model: str | None = None
     input_tokens: int | None = None
     output_tokens: int | None = None
+    prefix_cache_tokens: int | None = None
     concurrency: int | None = None
     precision: str | None = None
     task: str | None = None
@@ -20,6 +21,7 @@ class FilterOptions:
     models: tuple[str, ...] = ()
     input_tokens: tuple[int, ...] = ()
     output_tokens: tuple[int, ...] = ()
+    prefix_cache_tokens: tuple[int, ...] = ()
     concurrencies: tuple[int, ...] = ()
     precisions: tuple[str, ...] = ()
     tasks: tuple[str, ...] = ()
