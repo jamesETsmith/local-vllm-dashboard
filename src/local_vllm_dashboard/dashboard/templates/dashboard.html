@@ -71,6 +71,21 @@
       </form>
 
       {% if tab == 'performance' %}
+        {% if performance_chart %}
+          <section class="panel chart-panel">
+            <div class="section-heading"><div><p class="eyebrow">Scaling curve</p><h2>Throughput by concurrency</h2></div><p>Total token throughput per GPU as concurrency increases. Each trace represents an ISL, OSL, and prefix-cache combination.</p></div>
+            <div class="chart-layout">
+              <div class="chart-y-label">Total token throughput / GPU</div>
+              <div class="chart-area">
+                <svg id="performance-chart" role="img" aria-label="Total token throughput per GPU by concurrency"></svg>
+                <div class="chart-x-label">Concurrency</div>
+              </div>
+              <div class="chart-legend" id="performance-chart-legend"></div>
+            </div>
+            <script type="application/json" id="performance-chart-data">{{ performance_chart_json|tojson }}</script>
+            <script src="{{ request.scope.get('root_path', '') }}/static/performance-chart.js" defer></script>
+          </section>
+        {% endif %}
         <section class="panel">
           <div class="section-heading"><div><p class="eyebrow">Normalized results</p><h2>Performance</h2></div><p>Throughput is reported per GPU. Latencies are reported in seconds.</p></div>
           {% if data.performance %}

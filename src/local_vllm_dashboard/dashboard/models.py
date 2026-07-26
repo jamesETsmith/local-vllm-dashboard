@@ -46,6 +46,7 @@ class PerformanceView:
     precision: str | None
     input_tokens: int | None
     output_tokens: int | None
+    prefix_cache_tokens: int | None
     concurrency: int | None
     completed_requests: int | None
     failed_requests: int | None

@@ -56,6 +56,10 @@ def test_performance_dashboard_renders_normalized_results() -> None:
 
     assert response.status_code == 200
     assert "Performance" in response.text
+    assert "Throughput by concurrency" in response.text
+    assert "performance-chart-data" in response.text
+    assert "ISL 50000" in response.text
+    assert "Prefix 40000" in response.text
     assert "https://github.com/jamesETsmith/local-vllm-dashboard" in response.text
     assert "prefix-cache-performance-mi355x" in response.text
     assert "token/s/gpu" in response.text

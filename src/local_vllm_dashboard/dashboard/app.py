@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session, sessionmaker
 
+from local_vllm_dashboard.dashboard.chart import chart_json_data, performance_chart
 from local_vllm_dashboard.dashboard.models import DashboardFilters
 from local_vllm_dashboard.dashboard.repository import DashboardRepository
 
@@ -57,6 +58,7 @@ def create_dashboard_app(factory: sessionmaker[Session]) -> FastAPI:
             task=task or None,
         )
         data = DashboardRepository(session).load(filters)
+        chart = performance_chart(data.performance)
         return TEMPLATES.TemplateResponse(
             request,
             "dashboard.html",
@@ -64,6 +66,8 @@ def create_dashboard_app(factory: sessionmaker[Session]) -> FastAPI:
                 "tab": tab,
                 "filters": filters,
                 "data": data,
+                "performance_chart": chart,
+                "performance_chart_json": chart_json_data(chart),
             },
         )
 

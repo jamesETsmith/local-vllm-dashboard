@@ -125,6 +125,7 @@ class DashboardRepository:
             precision=optional_string(environment.get("precision")),
             input_tokens=optional_int(configuration.get("input_tokens")),
             output_tokens=optional_int(configuration.get("output_tokens")),
+            prefix_cache_tokens=optional_int(configuration.get("prefix_cache_tokens")),
             concurrency=optional_int(configuration.get("max_concurrency")),
             completed_requests=optional_int(configuration.get("completed")),
             failed_requests=optional_int(configuration.get("failed")),
