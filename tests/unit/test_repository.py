@@ -1,6 +1,5 @@
 from pathlib import Path
 
-import pytest
 from sqlalchemy import func, select
 
 from local_vllm_dashboard.contracts import Bundle
@@ -12,7 +11,6 @@ from local_vllm_dashboard.db import (
     make_session_factory,
 )
 from local_vllm_dashboard.db.models import BundleRecord, MetricRecord, ObservationRecord
-from local_vllm_dashboard.db.repository import IdempotencyConflictError
 
 FIXTURE = Path(__file__).parents[1] / "fixtures" / "contracts" / "v1" / "performance.json"
 
@@ -50,7 +48,7 @@ def test_repository_returns_duplicate_for_same_payload() -> None:
         assert session.scalar(select(func.count()).select_from(BundleRecord)) == 1
 
 
-def test_repository_rejects_key_reuse_for_different_payload() -> None:
+def test_repository_deduplicates_semantically_identical_payload() -> None:
     engine = make_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
     factory = make_session_factory(engine)
@@ -60,5 +58,7 @@ def test_repository_rejects_key_reuse_for_different_payload() -> None:
     with factory() as session:
         repository = BundleRepository(session)
         repository.save(bundle)
-        with pytest.raises(IdempotencyConflictError):
-            repository.save(conflict)
+        result = repository.save(conflict)
+
+        assert result.status == SaveStatus.DUPLICATE
+        assert result.bundle_id == bundle.bundle_id

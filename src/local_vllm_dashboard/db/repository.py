@@ -48,8 +48,6 @@ class BundleRepository:
             select(BundleRecord).where(BundleRecord.idempotency_key == bundle.idempotency_key)
         )
         if existing is not None:
-            if existing.payload != bundle.model_dump(mode="json"):
-                raise IdempotencyConflictError("idempotency key is already used by another payload")
             return SaveResult(existing.bundle_id, SaveStatus.DUPLICATE)
 
         record = BundleRecord(
@@ -100,7 +98,7 @@ class BundleRepository:
             existing = self.session.scalar(
                 select(BundleRecord).where(BundleRecord.idempotency_key == bundle.idempotency_key)
             )
-            if existing is None or existing.payload != bundle.model_dump(mode="json"):
+            if existing is None:
                 raise
             return SaveResult(existing.bundle_id, SaveStatus.DUPLICATE)
         return SaveResult(bundle.bundle_id, SaveStatus.ACCEPTED)

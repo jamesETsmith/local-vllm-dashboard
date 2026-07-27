@@ -6,6 +6,7 @@ from local_vllm_dashboard.api import Settings
 from local_vllm_dashboard.artifacts import artifact_contents
 from local_vllm_dashboard.contracts import Bundle
 from local_vllm_dashboard.db import initialize_schema, make_engine
+from local_vllm_dashboard.ingest_directory import ingest_directories, render_report
 from local_vllm_dashboard.publisher import Publisher
 
 
@@ -28,6 +29,11 @@ def build_parser() -> argparse.ArgumentParser:
     adapt_publish.add_argument("--result", type=Path, required=True)
     adapt_publish.add_argument("--endpoint", required=True)
 
+    ingest_directory = commands.add_parser("ingest-directory")
+    ingest_directory.add_argument("--workloads-dir", type=Path, required=True)
+    ingest_directory.add_argument("--results-dir", type=Path, required=True)
+    ingest_directory.add_argument("--endpoint")
+
     commands.add_parser("init-db")
     return parser
 
@@ -36,6 +42,21 @@ def main() -> None:
     args = build_parser().parse_args()
     if args.command == "init-db":
         initialize_schema(make_engine(Settings().database_url))
+        return
+    if args.command == "ingest-directory":
+        report, summary = ingest_directories(
+            args.workloads_dir,
+            args.results_dir,
+            args.endpoint,
+        )
+        print(render_report(report, args.workloads_dir, args.results_dir))
+        if summary:
+            print(
+                f"\nPublish report\n  Accepted: {summary.accepted}"
+                f"\n  Duplicates: {summary.duplicate}\n  Failed: {len(summary.failed)}"
+            )
+            for path, error in summary.failed:
+                print(f"  - {path}: {error}")
         return
     if args.command == "adapt-perf":
         bundle = build_performance_bundle(args.recipe, args.result)
