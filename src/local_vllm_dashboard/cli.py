@@ -33,6 +33,7 @@ def build_parser() -> argparse.ArgumentParser:
     ingest_directory.add_argument("--workloads-dir", type=Path, required=True)
     ingest_directory.add_argument("--results-dir", type=Path, required=True)
     ingest_directory.add_argument("--endpoint")
+    ingest_directory.add_argument("--container")
 
     commands.add_parser("init-db")
     return parser
@@ -48,6 +49,7 @@ def main() -> None:
             args.workloads_dir,
             args.results_dir,
             args.endpoint,
+            container=args.container,
         )
         print(render_report(report, args.workloads_dir, args.results_dir))
         if summary:

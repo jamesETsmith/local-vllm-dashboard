@@ -56,6 +56,7 @@ def render_report(report: DiscoveryReport, workloads_dir: Path, results_dir: Pat
 def publish_report(
     report: DiscoveryReport,
     endpoint: str,
+    container: str | None = None,
 ) -> PublishSummary:
     accepted = 0
     duplicate = 0
@@ -65,7 +66,11 @@ def publish_report(
             for config in workload.configs:
                 for result_path in config.results:
                     try:
-                        bundle = build_performance_bundle(workload.recipe_path, result_path)
+                        bundle = build_performance_bundle(
+                            workload.recipe_path,
+                            result_path,
+                            container=container,
+                        )
                         artifacts = artifact_contents(
                             bundle,
                             (workload.recipe_path, result_path),
@@ -84,7 +89,8 @@ def ingest_directories(
     workloads_dir: Path,
     results_dir: Path,
     endpoint: str | None,
+    container: str | None = None,
 ) -> tuple[DiscoveryReport, PublishSummary | None]:
     report = discover(workloads_dir, results_dir)
-    summary = publish_report(report, endpoint) if endpoint else None
+    summary = publish_report(report, endpoint, container=container) if endpoint else None
     return report, summary

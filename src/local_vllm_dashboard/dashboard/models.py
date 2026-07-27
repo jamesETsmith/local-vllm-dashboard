@@ -77,6 +77,8 @@ class RunView:
     accelerator_count: int
     vllm_image: str | None
     vllm_commit: str | None
+    aiter_commit: str | None
+    container: str | None
     runner_kind: str
     observation_count: int
     artifact_count: int
