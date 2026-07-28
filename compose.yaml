@@ -25,6 +25,7 @@ services:
     build: .
     environment:
       DASHBOARD_DATABASE_URL: postgresql+psycopg://postgres@postgres:5432/dashboard
+      DASHBOARD_INGEST_TOKEN: ${DASHBOARD_INGEST_TOKEN:?set DASHBOARD_INGEST_TOKEN}
     ports:
       - "8000:8000"
     depends_on:

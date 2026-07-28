@@ -56,12 +56,13 @@ def render_report(report: DiscoveryReport, workloads_dir: Path, results_dir: Pat
 def publish_report(
     report: DiscoveryReport,
     endpoint: str,
+    token: str,
     container: str | None = None,
 ) -> PublishSummary:
     accepted = 0
     duplicate = 0
     failed = []
-    with Publisher(endpoint) as publisher:
+    with Publisher(endpoint, token=token) as publisher:
         for workload in report.workloads:
             for config in workload.configs:
                 for result_path in config.results:
@@ -89,8 +90,12 @@ def ingest_directories(
     workloads_dir: Path,
     results_dir: Path,
     endpoint: str | None,
+    token: str | None = None,
     container: str | None = None,
 ) -> tuple[DiscoveryReport, PublishSummary | None]:
     report = discover(workloads_dir, results_dir)
-    summary = publish_report(report, endpoint, container=container) if endpoint else None
+    if endpoint and not token:
+        raise ValueError("ingestion token is required when publishing")
+    can_publish = endpoint is not None and token is not None
+    summary = publish_report(report, endpoint, token, container=container) if can_publish else None
     return report, summary

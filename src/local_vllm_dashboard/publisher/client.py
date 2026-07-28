@@ -15,8 +15,16 @@ class PublishResult:
 
 
 class Publisher:
-    def __init__(self, endpoint: str, *, timeout: float = 30, retries: int = 2) -> None:
+    def __init__(
+        self,
+        endpoint: str,
+        *,
+        token: str,
+        timeout: float = 30,
+        retries: int = 2,
+    ) -> None:
         self.endpoint = endpoint.rstrip("/")
+        self.token = token
         transport = httpx.HTTPTransport(retries=retries)
         self.client = httpx.Client(transport=transport, timeout=timeout)
 
@@ -45,7 +53,10 @@ class Publisher:
         response = self.client.post(
             f"{self.endpoint}/v1/bundles",
             files=files,
-            headers={"Idempotency-Key": bundle.idempotency_key},
+            headers={
+                "Authorization": f"Bearer {self.token}",
+                "Idempotency-Key": bundle.idempotency_key,
+            },
         )
         response.raise_for_status()
         payload = response.json()

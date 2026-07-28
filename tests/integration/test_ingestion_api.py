@@ -81,19 +81,27 @@ def test_ingestion_accepts_then_deduplicates_one_way_submission() -> None:
     engine = memory_engine()
     Base.metadata.create_all(engine)
     factory = make_session_factory(engine)
-    app = create_app(Settings(database_url="sqlite+pysqlite:///:memory:"), factory)
+    app = create_app(
+        Settings(database_url="sqlite+pysqlite:///:memory:", ingest_token="test-token"), factory
+    )
     bundle, artifacts = matching_bundle()
 
     with TestClient(app) as client:
         accepted = client.post(
             "/v1/bundles",
             files=multipart(bundle, artifacts),
-            headers={"Idempotency-Key": bundle.idempotency_key},
+            headers={
+                "Authorization": "Bearer test-token",
+                "Idempotency-Key": bundle.idempotency_key,
+            },
         )
         duplicate = client.post(
             "/v1/bundles",
             files=multipart(bundle, artifacts),
-            headers={"Idempotency-Key": bundle.idempotency_key},
+            headers={
+                "Authorization": "Bearer test-token",
+                "Idempotency-Key": bundle.idempotency_key,
+            },
         )
 
     assert accepted.status_code == 201
@@ -105,18 +113,55 @@ def test_ingestion_accepts_then_deduplicates_one_way_submission() -> None:
         assert session.scalar(select(func.count()).select_from(ArtifactRecord)) == len(artifacts)
 
 
+def test_ingestion_requires_valid_bearer_token() -> None:
+    engine = memory_engine()
+    Base.metadata.create_all(engine)
+    factory = make_session_factory(engine)
+    app = create_app(
+        Settings(database_url="sqlite+pysqlite:///:memory:", ingest_token="test-token"),
+        factory,
+    )
+    bundle, artifacts = matching_bundle()
+
+    with TestClient(app) as client:
+        missing = client.post(
+            "/v1/bundles",
+            files=multipart(bundle, artifacts),
+            headers={"Idempotency-Key": bundle.idempotency_key},
+        )
+        wrong = client.post(
+            "/v1/bundles",
+            files=multipart(bundle, artifacts),
+            headers={
+                "Authorization": "Bearer wrong-token",
+                "Idempotency-Key": bundle.idempotency_key,
+            },
+        )
+        dashboard = client.get("/dashboard/")
+
+    assert missing.status_code == 401
+    assert missing.headers["www-authenticate"] == "Bearer"
+    assert wrong.status_code == 401
+    assert dashboard.status_code == 200
+
+
 def test_ingestion_rejects_header_mismatch() -> None:
     engine = memory_engine()
     Base.metadata.create_all(engine)
     factory = make_session_factory(engine)
-    app = create_app(Settings(database_url="sqlite+pysqlite:///:memory:"), factory)
+    app = create_app(
+        Settings(database_url="sqlite+pysqlite:///:memory:", ingest_token="test-token"), factory
+    )
     bundle, artifacts = matching_bundle()
 
     with TestClient(app) as client:
         response = client.post(
             "/v1/bundles",
             files=multipart(bundle, artifacts),
-            headers={"Idempotency-Key": f"sha256:{'f' * 64}"},
+            headers={
+                "Authorization": "Bearer test-token",
+                "Idempotency-Key": f"sha256:{'f' * 64}",
+            },
         )
 
     assert response.status_code == 409
@@ -126,14 +171,19 @@ def test_ingestion_rejects_missing_or_changed_artifact() -> None:
     engine = memory_engine()
     Base.metadata.create_all(engine)
     factory = make_session_factory(engine)
-    app = create_app(Settings(database_url="sqlite+pysqlite:///:memory:"), factory)
+    app = create_app(
+        Settings(database_url="sqlite+pysqlite:///:memory:", ingest_token="test-token"), factory
+    )
     bundle, artifacts = matching_bundle()
 
     with TestClient(app) as client:
         missing = client.post(
             "/v1/bundles",
             files=multipart(bundle, artifacts[:-1]),
-            headers={"Idempotency-Key": bundle.idempotency_key},
+            headers={
+                "Authorization": "Bearer test-token",
+                "Idempotency-Key": bundle.idempotency_key,
+            },
         )
         changed = artifacts[0].__class__(
             path=artifacts[0].path,
@@ -144,7 +194,10 @@ def test_ingestion_rejects_missing_or_changed_artifact() -> None:
         mismatch = client.post(
             "/v1/bundles",
             files=multipart(bundle, (changed, *artifacts[1:])),
-            headers={"Idempotency-Key": bundle.idempotency_key},
+            headers={
+                "Authorization": "Bearer test-token",
+                "Idempotency-Key": bundle.idempotency_key,
+            },
         )
 
     assert missing.status_code == 422
@@ -155,7 +208,9 @@ def test_ingestion_rejects_large_request() -> None:
     engine = memory_engine()
     Base.metadata.create_all(engine)
     factory = make_session_factory(engine)
-    settings = Settings(database_url="sqlite+pysqlite:///:memory:", max_request_bytes=10)
+    settings = Settings(
+        database_url="sqlite+pysqlite:///:memory:", ingest_token="test-token", max_request_bytes=10
+    )
     app = create_app(settings, factory)
     bundle, artifacts = matching_bundle()
 
@@ -163,7 +218,10 @@ def test_ingestion_rejects_large_request() -> None:
         response = client.post(
             "/v1/bundles",
             files=multipart(bundle, artifacts),
-            headers={"Idempotency-Key": bundle.idempotency_key},
+            headers={
+                "Authorization": "Bearer test-token",
+                "Idempotency-Key": bundle.idempotency_key,
+            },
         )
 
     assert response.status_code == 413

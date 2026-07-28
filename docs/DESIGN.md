@@ -61,7 +61,7 @@ The service stores submitted canonical bundles, standardized observations, and s
 
 ### 4.4 No shared database access from clients
 
-Only server-side services connect to the database. The initial deployment is restricted to one trusted network and does not require application-layer authentication or scoped tokens. The ingestion API still centralizes validation, migrations, idempotency, and backup policy while keeping database credentials off developer laptops and CI workers.
+Only server-side services connect to the database. The initial deployment is restricted to one trusted network and uses one shared bearer token for ingestion. The dashboard remains readable without application-layer authentication. The ingestion API centralizes authentication, validation, schema management, idempotency, and backup policy while keeping database credentials off developer laptops and CI workers.
 
 ## 5. Modules and ownership
 
@@ -327,7 +327,7 @@ Add an MCP server for machine-readable run discovery, filtering, and metric retr
 
 1. **Initial scope:** Begin with Phase 0 and Phase 1 only, supporting performance and lm-eval result artifacts first.
 2. **Infrastructure:** Use PostgreSQL and Docker Compose for local development.
-3. **Transport:** Send one unauthenticated multipart `POST /v1/bundles` request over the trusted network containing transformed data and selected unchanged source attachments.
+3. **Transport:** Send one bearer-token-authenticated multipart `POST /v1/bundles` request over the trusted network containing transformed data and selected unchanged source attachments.
 4. **Boundary:** Install the adapter/publisher on benchmark clients; run the full service stack only on the server side; clients have no database access; servers do not parse attached source files.
 5. **Storage policy:** Submitted canonical bundles, observations, and selected original workload/result files are immutable; dashboard projections are rebuildable; large or arbitrary artifacts remain on the benchmark host.
 6. **Schema policy:** Start with a simple canonical v1 schema, then iteratively extend it as concrete inputs and dashboard needs emerge. Schema changes remain explicit, versioned, and covered by fixtures; a new major version is reserved for incompatible changes.
