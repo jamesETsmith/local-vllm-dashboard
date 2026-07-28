@@ -14,7 +14,7 @@ services:
 
   initialize:
     build: .
-    command: ["benchmark-results", "init-db"]
+    command: ["local-vllm-dashboard", "init-db"]
     environment:
       DASHBOARD_DATABASE_URL: postgresql+psycopg://postgres@postgres:5432/dashboard
     depends_on:

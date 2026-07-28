@@ -4,7 +4,7 @@
 
 ## 1. Purpose
 
-This project is a benchmark-results platform for runs produced by [vllm-project/perf-eval](https://github.com/vllm-project/perf-eval). It standardizes performance, accuracy, and function-calling evaluation results on the benchmark host, stores the transformed observations and selected immutable source artifacts, and presents them in a dashboard.
+This project is a benchmark results platform for runs produced by [vllm-project/perf-eval](https://github.com/vllm-project/perf-eval). It standardizes performance, accuracy, and function-calling evaluation results on the benchmark host, stores the transformed observations and selected immutable source artifacts, and presents them in a dashboard.
 
 The platform is deliberately not a benchmark runner. `perf-eval` remains responsible for selecting workloads, provisioning and serving vLLM, executing benchmarks, and producing artifacts. This platform begins when a completed run's artifacts are available.
 
@@ -182,13 +182,13 @@ Only the adapter/publisher distribution is installed where benchmarks run. It ca
 The initial command shape is:
 
 ```text
-benchmark-results publish --bundle ./result-bundle.json --endpoint http://results.internal/v1/bundles
+local-vllm-dashboard publish --bundle ./result-bundle.json --endpoint http://results.internal
 ```
 
 A convenience command may combine adaptation and publication:
 
 ```text
-benchmark-results perf-eval publish --results-dir ./results --workload ./workloads/example.yaml
+local-vllm-dashboard adapt-and-publish --recipe ./workloads/example.yaml --result ./results/bench.json --endpoint http://results.internal
 ```
 
 The combined command is composition only. It preserves the explicit intermediate bundle for inspection, offline transport, and test fixtures.

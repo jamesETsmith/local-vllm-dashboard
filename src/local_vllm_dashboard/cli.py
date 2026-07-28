@@ -12,7 +12,7 @@ from local_vllm_dashboard.publisher import Publisher
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="benchmark-results")
+    parser = argparse.ArgumentParser(prog="local-vllm-dashboard")
     commands = parser.add_subparsers(dest="command", required=True)
 
     adapt = commands.add_parser("adapt-perf")

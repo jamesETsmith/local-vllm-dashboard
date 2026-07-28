@@ -31,13 +31,15 @@ export DASHBOARD_INGEST_TOKEN="$(python3 -c 'import secrets; print(secrets.token
 Create a canonical performance bundle from `perf-eval` files:
 
 ```text
-uv run benchmark-results adapt-perf --recipe workload.yaml --result bench.json --output bundle.json
+uv run local-vllm-dashboard adapt-perf --recipe workload.yaml --result bench.json --output bundle.json
 ```
 
 Publish it in one request:
 
 ```text
-uv run benchmark-results publish \
+uv run local-vllm-dashboard publish \
   --bundle bundle.json \
+  --artifact workload.yaml \
+  --artifact bench.json \
   --endpoint http://localhost:8000
 ```

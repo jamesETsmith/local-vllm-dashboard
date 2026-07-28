@@ -17,7 +17,7 @@ dependencies = [
 ]
 
 [project.scripts]
-benchmark-results = "local_vllm_dashboard.cli:main"
+local-vllm-dashboard = "local_vllm_dashboard.cli:main"
 
 [dependency-groups]
 dev = [
