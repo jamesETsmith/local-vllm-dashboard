@@ -23,7 +23,7 @@ def test_publisher_sends_one_request_with_idempotency_header() -> None:
         requests.append(request)
         return httpx.Response(201, json={"bundle_id": str(bundle.bundle_id), "status": "accepted"})
 
-    publisher = Publisher("http://results.internal")
+    publisher = Publisher("http://results.internal", token="test-token")
     publisher.client.close()
     publisher.client = httpx.Client(transport=httpx.MockTransport(handle))
 
@@ -38,6 +38,7 @@ def test_publisher_sends_one_request_with_idempotency_header() -> None:
     assert result.status == "accepted"
     assert len(requests) == 1
     assert requests[0].url.path == "/v1/bundles"
+    assert requests[0].headers["Authorization"] == "Bearer test-token"
     assert requests[0].headers["Idempotency-Key"] == bundle.idempotency_key
     assert requests[0].headers["content-type"].startswith("multipart/form-data")
     assert b"X-Artifact-Role: raw_bench_result" in requests[0].content
@@ -47,6 +48,6 @@ def test_publisher_sends_one_request_with_idempotency_header() -> None:
 def test_publisher_rejects_mismatched_idempotency_key() -> None:
     bundle = load_bundle()
 
-    with Publisher("http://results.internal") as publisher:
+    with Publisher("http://results.internal", token="test-token") as publisher:
         with pytest.raises(ValueError, match="idempotency key"):
             publisher.publish(bundle)

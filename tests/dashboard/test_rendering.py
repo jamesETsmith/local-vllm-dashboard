@@ -41,7 +41,9 @@ def dashboard_client(*, populated: bool = True) -> TestClient:
                 accuracy,
                 artifact_contents(accuracy, (recipe, accuracy_result)),
             )
-    app = create_app(Settings(database_url="sqlite+pysqlite:///:memory:"), factory)
+    app = create_app(
+        Settings(database_url="sqlite+pysqlite:///:memory:", ingest_token="test-token"), factory
+    )
     return TestClient(app)
 
 

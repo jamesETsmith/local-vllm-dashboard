@@ -1,4 +1,5 @@
 import argparse
+import os
 from pathlib import Path
 
 from local_vllm_dashboard.adapter import build_performance_bundle
@@ -23,20 +24,30 @@ def build_parser() -> argparse.ArgumentParser:
     publish.add_argument("--bundle", type=Path, required=True)
     publish.add_argument("--artifact", type=Path, action="append", default=[])
     publish.add_argument("--endpoint", required=True)
+    publish.add_argument("--token")
 
     adapt_publish = commands.add_parser("adapt-and-publish")
     adapt_publish.add_argument("--recipe", type=Path, required=True)
     adapt_publish.add_argument("--result", type=Path, required=True)
     adapt_publish.add_argument("--endpoint", required=True)
+    adapt_publish.add_argument("--token")
 
     ingest_directory = commands.add_parser("ingest-directory")
     ingest_directory.add_argument("--workloads-dir", type=Path, required=True)
     ingest_directory.add_argument("--results-dir", type=Path, required=True)
     ingest_directory.add_argument("--endpoint")
+    ingest_directory.add_argument("--token")
     ingest_directory.add_argument("--container")
 
     commands.add_parser("init-db")
     return parser
+
+
+def ingestion_token(args: argparse.Namespace) -> str:
+    token = getattr(args, "token", None) or os.environ.get("DASHBOARD_INGEST_TOKEN")
+    if not token:
+        raise SystemExit("ingestion token required: use --token or DASHBOARD_INGEST_TOKEN")
+    return token
 
 
 def main() -> None:
@@ -49,6 +60,7 @@ def main() -> None:
             args.workloads_dir,
             args.results_dir,
             args.endpoint,
+            token=ingestion_token(args) if args.endpoint else None,
             container=args.container,
         )
         print(render_report(report, args.workloads_dir, args.results_dir))
@@ -70,7 +82,7 @@ def main() -> None:
     else:
         bundle = build_performance_bundle(args.recipe, args.result)
         artifacts = artifact_contents(bundle, (args.recipe, args.result))
-    with Publisher(args.endpoint) as publisher:
+    with Publisher(args.endpoint, token=ingestion_token(args)) as publisher:
         result = publisher.publish(bundle, artifacts)
     print(f"{result.status}: {result.bundle_id}")
 

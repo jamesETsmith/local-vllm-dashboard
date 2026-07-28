@@ -1,4 +1,5 @@
 import hashlib
+import secrets
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Annotated
@@ -35,6 +36,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DASHBOARD_")
 
     database_url: str
+    ingest_token: str
     max_request_bytes: int = 4_194_304
     max_artifact_bytes: int = 1_048_576
 
@@ -65,6 +67,19 @@ def create_app(
         with factory() as session:
             yield session
 
+    def authenticate(authorization: Annotated[str | None, Header()] = None) -> None:
+        scheme, _, credential = (authorization or "").partition(" ")
+        valid = scheme.lower() == "bearer" and secrets.compare_digest(
+            credential,
+            selected_settings.ingest_token,
+        )
+        if not valid:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="invalid or missing ingestion token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
     @app.post(
         "/v1/bundles",
         response_model=IngestResponse,
@@ -74,6 +89,7 @@ def create_app(
         request: Request,
         response: Response,
         idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
+        _authenticated: Annotated[None, Depends(authenticate)],
         session: Annotated[Session, Depends(get_session)],
         bundle_file: Annotated[UploadFile, File(alias="bundle")],
         artifact_files: Annotated[list[UploadFile] | None, File(alias="artifacts")] = None,
