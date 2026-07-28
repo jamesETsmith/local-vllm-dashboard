@@ -2,6 +2,7 @@ from pathlib import Path
 from uuid import UUID
 
 from local_vllm_dashboard.adapter import build_performance_bundle
+from local_vllm_dashboard.container_revisions import ContainerRevisions
 from local_vllm_dashboard.contracts import MetricName
 
 FIXTURES = Path(__file__).parents[1] / "fixtures" / "perf_eval"
@@ -28,6 +29,23 @@ def test_build_performance_bundle_from_real_shape() -> None:
     assert total.unit == "token/s/gpu"
     assert requests.value == 0.014782596617170914
     assert requests.unit == "request/s/gpu"
+
+
+def test_bundle_includes_container_revisions_when_provided() -> None:
+    bundle = build_performance_bundle(
+        FIXTURES / "prefix_cache_workload.yaml",
+        FIXTURES / "prefix_cache_partial_failure_bench.json",
+        bundle_id=UUID("018f4d6a-4c1f-7c7a-98cf-3b5c7cef3d1c"),
+        container_revisions=ContainerRevisions(
+            container="perf-eval-demo-123",
+            vllm_commit="abcdef0",
+            aiter_commit="fedcba0",
+        ),
+    )
+
+    assert bundle.run.vllm.commit == "abcdef0"
+    assert bundle.environment.extensions.get("aiter_commit") == "fedcba0"
+    assert bundle.run.source.extensions.get("container") == "perf-eval-demo-123"
 
 
 def test_bundle_generation_is_deterministic_for_fixed_bundle_id() -> None:

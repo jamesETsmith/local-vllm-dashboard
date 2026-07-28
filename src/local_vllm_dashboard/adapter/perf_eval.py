@@ -10,6 +10,7 @@ from uuid import UUID, uuid4
 import yaml
 
 from local_vllm_dashboard import __version__
+from local_vllm_dashboard.container_revisions import ContainerRevisions, discover_revisions
 from local_vllm_dashboard.contracts import (
     ArtifactRole,
     Bundle,
@@ -109,6 +110,8 @@ def build_performance_bundle(
     bundle_id: UUID | None = None,
     runner: Runner | None = None,
     source_revision: str | None = None,
+    container: str | None = None,
+    container_revisions: ContainerRevisions | None = None,
 ) -> Bundle:
     recipe = load_mapping(recipe_path)
     result = load_mapping(result_path)
@@ -117,6 +120,15 @@ def build_performance_bundle(
     vllm = recipe["vllm"]
     bench_metadata = recipe.get("vllm_bench", {}).get("metadata", {})
     parallelism = int(bench_metadata["tp"])
+    gpu = str(recipe["gpu"])
+    is_rocm = gpu.upper().startswith("MI")
+    if container_revisions is None:
+        container_revisions = discover_revisions(
+            str(recipe["name"]),
+            str(vllm["image"]),
+            is_rocm=is_rocm,
+            container=container,
+        )
     completed_at = parse_result_time(str(result["date"]))
     duration = float(result.get("duration") or 0)
     selected_bundle_id = bundle_id or uuid4()
@@ -133,6 +145,9 @@ def build_performance_bundle(
             source=Source(
                 kind="perf-eval",
                 revision=source_revision,
+                extensions={"container": container_revisions.container}
+                if container_revisions.container
+                else {},
                 artifacts=(
                     RawArtifactProvenance(
                         path=recipe_path.name,
@@ -148,7 +163,10 @@ def build_performance_bundle(
                     ),
                 ),
             ),
-            vllm=Vllm(image=str(vllm["image"])),
+            vllm=Vllm(
+                image=str(vllm["image"]),
+                commit=container_revisions.vllm_commit or vllm.get("commit"),
+            ),
         ),
         workload=Workload(
             name=str(recipe["name"]),
@@ -161,6 +179,9 @@ def build_performance_bundle(
             accelerator_count=int(recipe["num_gpus"]),
             precision=str(bench_metadata["precision"]) if bench_metadata.get("precision") else None,
             tensor_parallel_size=parallelism,
+            extensions={"aiter_commit": container_revisions.aiter_commit}
+            if container_revisions.aiter_commit
+            else {},
         ),
         observations=(
             Observation(

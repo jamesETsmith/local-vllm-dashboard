@@ -305,6 +305,9 @@ class DashboardRepository:
         workload = mapping(payload.get("workload"))
         run = mapping(payload.get("run"))
         vllm = mapping(run.get("vllm"))
+        source = mapping(run.get("source"))
+        source_extensions = mapping(source.get("extensions"))
+        environment_extensions = mapping(environment.get("extensions"))
         runner = mapping(run.get("runner"))
         return RunView(
             bundle_id=bundle.bundle_id,
@@ -316,6 +319,8 @@ class DashboardRepository:
             accelerator_count=int(environment.get("accelerator_count", 0)),
             vllm_image=optional_string(vllm.get("image")),
             vllm_commit=optional_string(vllm.get("commit")),
+            aiter_commit=optional_string(environment_extensions.get("aiter_commit")),
+            container=optional_string(source_extensions.get("container")),
             runner_kind=str(runner.get("kind", "unknown")),
             observation_count=len(bundle.observations),
             artifact_count=len(bundle.artifacts),
