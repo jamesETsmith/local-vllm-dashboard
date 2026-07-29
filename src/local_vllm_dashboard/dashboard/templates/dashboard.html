@@ -120,24 +120,20 @@
           {% else %}<div class="empty"><h3>No accuracy results</h3><p>Adjust the filters or publish an lm-eval bundle.</p></div>{% endif %}
         </section>
       {% else %}
-        <section class="panel">
-          <div class="section-heading"><div><p class="eyebrow">Provenance</p><h2>Runs &amp; Data</h2></div><p>Compact evidence for interpreting every displayed result.</p></div>
-          {% if data.runs %}
-            <div class="table-wrap"><table>
-              <thead><tr><th>Accepted</th><th>Workload</th><th>Environment</th><th>vLLM</th><th>Source</th><th>Bundle</th></tr></thead>
-              <tbody>{% for row in data.runs %}<tr class="run-row" data-href="{{ request.scope.get('root_path', '') }}/runs/{{ row.bundle_id }}" title="{{ row.hardware }} · {{ row.accelerator_count }} GPU · {{ row.model }} · {{ row.vllm_image or row.vllm_commit or 'unknown vLLM version' }}">
-                <td>{{ row.accepted_at.strftime('%Y-%m-%d %H:%M') }}</td>
-                <td><strong>{{ row.workload }}</strong><small>{{ row.model }}</small></td>
-                <td><strong>{{ row.hardware }}</strong><small>{{ row.accelerator_count }} GPU{% if row.accelerator_count != 1 %}s{% endif %}</small></td>
-                <td>{{ row.vllm_image or row.vllm_commit or 'unknown' }}</td>
-                <td>{{ row.runner_kind }}<small>{{ row.observation_count }} observation{% if row.observation_count != 1 %}s{% endif %} · {{ row.artifact_count }} artifact references</small></td>
-                <td><code>{{ row.bundle_id }}</code></td>
+        <section class="panel dataframe-panel">
+          <div class="section-heading"><div><p class="eyebrow">Flattened observations</p><h2>Runs &amp; Data</h2></div><p>One row per performance result, with configuration, hardware, revisions, and metrics flattened into columns.</p></div>
+          {% if data.run_data %}
+            <div class="table-wrap dataframe-wrap"><table class="dataframe-table">
+              <thead><tr><th>Completed</th><th>GPU</th><th># GPUs</th><th>Model</th><th>Precision</th><th>TP</th><th>DP</th><th>EP</th><th>ISL</th><th>OSL</th><th>Prefix</th><th>Concurrency</th><th>Completed req.</th><th>Failed req.</th><th>Total tok/s/GPU</th><th>Output tok/s/GPU</th><th>Req/s/GPU</th><th>Mean TTFT (s)</th><th>P99 TTFT (s)</th><th>Mean TPOT (s)</th><th>P99 TPOT (s)</th><th>Mean ITL (s)</th><th>P99 ITL (s)</th><th>Mean E2E (s)</th><th>P99 E2E (s)</th><th>vLLM image</th><th>vLLM commit</th><th>AITER commit</th><th>Bundle</th></tr></thead>
+              <tbody>{% for row in data.run_data %}<tr class="run-row" data-href="{{ request.scope.get('root_path', '') }}/runs/{{ row.bundle_id }}" title="Click for full configuration and source artifacts">
+                <td>{{ row.completed_at.strftime('%Y-%m-%d %H:%M') }}</td><td><strong>{{ row.hardware }}</strong></td><td>{{ row.accelerator_count }}</td><td>{{ row.model }}</td><td>{{ row.precision or '' }}</td><td>{{ row.tensor_parallel_size or 1 }}</td><td>{{ row.data_parallel_size or 1 }}</td><td>{{ 'on' if row.expert_parallel else 'off' }}</td><td>{{ row.input_tokens or '' }}</td><td>{{ row.output_tokens or '' }}</td><td>{{ row.prefix_cache_tokens or 0 }}</td><td>{{ row.concurrency or '' }}</td><td>{{ row.completed_requests if row.completed_requests is not none else '' }}</td><td>{{ row.failed_requests if row.failed_requests is not none else '' }}</td><td>{{ '%.4f'|format(row.total_token_throughput_per_gpu) if row.total_token_throughput_per_gpu is not none else '' }}</td><td>{{ '%.4f'|format(row.output_token_throughput_per_gpu) if row.output_token_throughput_per_gpu is not none else '' }}</td><td>{{ '%.6f'|format(row.request_throughput_per_gpu) if row.request_throughput_per_gpu is not none else '' }}</td><td>{{ '%.6f'|format(row.mean_ttft) if row.mean_ttft is not none else '' }}</td><td>{{ '%.6f'|format(row.p99_ttft) if row.p99_ttft is not none else '' }}</td><td>{{ '%.6f'|format(row.mean_tpot) if row.mean_tpot is not none else '' }}</td><td>{{ '%.6f'|format(row.p99_tpot) if row.p99_tpot is not none else '' }}</td><td>{{ '%.6f'|format(row.mean_itl) if row.mean_itl is not none else '' }}</td><td>{{ '%.6f'|format(row.p99_itl) if row.p99_itl is not none else '' }}</td><td>{{ '%.6f'|format(row.mean_e2el) if row.mean_e2el is not none else '' }}</td><td>{{ '%.6f'|format(row.p99_e2el) if row.p99_e2el is not none else '' }}</td><td>{{ row.vllm_image or '' }}</td><td><code>{{ row.vllm_commit or '' }}</code></td><td><code>{{ row.aiter_commit or '' }}</code></td><td><code>{{ row.bundle_id }}</code></td>
               </tr>{% endfor %}</tbody>
             </table></div>
-          {% else %}<div class="empty"><h3>No runs</h3><p>Adjust the filters or publish a canonical bundle.</p></div>{% endif %}
+          {% else %}<div class="empty"><h3>No performance rows</h3><p>Adjust the filters or publish a performance bundle.</p></div>{% endif %}
         </section>
       {% endif %}
       <script src="{{ request.scope.get('root_path', '') }}/static/run-links.js" defer></script>
+      <script src="{{ request.scope.get('root_path', '') }}/static/auto-filters.js" defer></script>
     </main>
   </body>
 </html>

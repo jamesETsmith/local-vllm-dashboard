@@ -81,6 +81,11 @@ button:hover { background: var(--accent-dark); }
 .section-heading { display: flex; justify-content: space-between; gap: 28px; padding: 27px 30px 24px; border-bottom: 1px solid var(--line); background: linear-gradient(125deg, #fff 55%, #f6f3ff); }
 .section-heading > p { max-width: 480px; margin: auto 0; color: var(--muted); font-size: .88rem; line-height: 1.55; text-align: right; }
 .table-wrap { overflow-x: auto; }
+.dataframe-wrap { max-height: 72vh; overflow: auto; }
+.dataframe-table { width: max-content; min-width: 100%; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dataframe-table th { position: sticky; z-index: 2; top: 0; box-shadow: inset 0 -1px var(--line); }
+.dataframe-table td { max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+.dataframe-table tbody tr:nth-child(even) { background: #fcfbfe; }
 table { width: 100%; border-collapse: collapse; font-size: .86rem; }
 th { padding: 13px 16px; color: #92909b; background: var(--surface-soft); font-size: .66rem; font-weight: 700; letter-spacing: .065em; text-align: left; text-transform: uppercase; }
 td { padding: 16px; border-top: 1px solid var(--line); vertical-align: middle; }
@@ -160,6 +165,22 @@ details summary { padding: 18px 22px; cursor: pointer; color: var(--accent-dark)
 .drop-zone input { margin-inline: auto; max-width: 100%; color: var(--muted); font-weight: 400; }
 .upload-or { color: var(--muted); font-size: .75rem; font-weight: 700; text-align: center; text-transform: uppercase; }
 .upload-report pre { max-height: 620px; margin: 0; padding: 24px; overflow: auto; white-space: pre; background: #f8f7fb; font: .8rem/1.6 ui-monospace, monospace; }
+.upload-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+.upload-summary div { padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-soft); }
+.upload-summary strong, .upload-summary span { display: block; }
+.upload-summary strong { margin-bottom: 3px; font: 750 1.7rem "Manrope", sans-serif; }
+.upload-summary span { color: var(--muted); font-size: .72rem; font-weight: 650; text-transform: uppercase; }
+.upload-config-list { display: grid; gap: 1px; background: var(--line); }
+.upload-config { padding: 16px 20px; background: var(--surface); }
+.upload-config > div { display: flex; align-items: center; gap: 12px; }
+.upload-config ul { margin: 10px 0 0 86px; padding-left: 18px; color: var(--muted); font: .76rem/1.55 ui-monospace, monospace; }
+.upload-config p { margin: 8px 0 0 86px; color: var(--muted); font-size: .8rem; }
+.status-pill { min-width: 74px; padding: 4px 7px; border-radius: 999px; font-size: .63rem; font-weight: 750; text-align: center; text-transform: uppercase; }
+.upload-status-matched .status-pill { color: #176c49; background: #eaf8f0; }
+.upload-status-repeated .status-pill { color: #8b5b12; background: #fff5db; }
+.upload-status-missing .status-pill { color: #a52f43; background: #ffedf0; }
+.upload-notices { padding: 22px; }
+.upload-notices ul { margin-bottom: 0; color: var(--muted); line-height: 1.7; }
 .confirm-upload { display: flex; justify-content: flex-end; }
 .confirm-upload button:disabled { opacity: .45; cursor: not-allowed; }
 .upload-actions { display: flex; align-items: center; gap: 18px; }
@@ -190,6 +211,7 @@ details summary { padding: 18px 22px; cursor: pointer; color: var(--accent-dark)
 @media (max-width: 620px) {
   .shell { width: min(100% - 22px, 1480px); }
   .stat-grid { grid-template-columns: 1fr; }
+  .upload-summary { grid-template-columns: repeat(2, 1fr); }
   .stat-grid div { display: flex; align-items: center; justify-content: space-between; }
   .tabs { display: flex; overflow-x: auto; }
   .tabs a { flex: 1 0 auto; text-align: center; white-space: nowrap; }

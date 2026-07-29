@@ -92,8 +92,14 @@ def test_runs_dashboard_renders_provenance() -> None:
 
     assert response.status_code == 200
     assert "Runs &amp; Data" in response.text
+    assert "Flattened observations" in response.text
+    assert "Total tok/s/GPU" in response.text
+    assert "Mean TTFT (s)" in response.text
+    assert "dataframe-table" in response.text
+    assert "auto-filters.js" in response.text
+    assert "TP" in response.text
+    assert "EP" in response.text
     assert "example-registry/vllm-openai:test" in response.text
-    assert "artifact references" in response.text
     assert 'class="run-row"' in response.text
     assert "run-links.js" in response.text
 

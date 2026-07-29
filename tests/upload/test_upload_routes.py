@@ -98,7 +98,9 @@ def test_archive_preview_then_confirmation(tmp_path: Path) -> None:
         dashboard_page = dashboard.get("/dashboard/")
 
     assert preview.status_code == 200
-    assert "MATCHED" in preview.text
+    assert "matched" in preview.text
+    assert "upload-summary" in preview.text
+    assert "upload-config-list" in preview.text
     assert result.status_code == 200
     assert "Accepted 1" in result.text
     assert "prefix-cache-performance-mi355x" in dashboard_page.text

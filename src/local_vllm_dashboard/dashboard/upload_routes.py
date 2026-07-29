@@ -9,8 +9,8 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
+from local_vllm_dashboard.dashboard.upload_view import upload_report_view
 from local_vllm_dashboard.db import BundleRepository
-from local_vllm_dashboard.ingest_directory import render_report
 from local_vllm_dashboard.upload import UploadedFile, archive_files, ingest_preview, stage_upload
 from local_vllm_dashboard.upload_sessions import UploadSessionStore
 
@@ -69,7 +69,7 @@ def register_upload_routes(
         except (ValueError, tarfile.TarError) as error:
             return error_response(request, str(error))
         confirmation = sessions.create(preview)
-        report = render_report(preview.report, preview.root, preview.root)
+        report = upload_report_view(preview.report, preview.root)
         return templates.TemplateResponse(
             request,
             "upload-preview.html",

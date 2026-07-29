@@ -70,6 +70,39 @@ class AccuracyView:
 
 
 @dataclass(frozen=True)
+class RunDataRow:
+    bundle_id: UUID
+    completed_at: datetime
+    hardware: str
+    accelerator_count: int
+    model: str
+    precision: str | None
+    tensor_parallel_size: int | None
+    data_parallel_size: int | None
+    expert_parallel: bool
+    input_tokens: int | None
+    output_tokens: int | None
+    prefix_cache_tokens: int | None
+    concurrency: int | None
+    completed_requests: int | None
+    failed_requests: int | None
+    total_token_throughput_per_gpu: float | None
+    output_token_throughput_per_gpu: float | None
+    request_throughput_per_gpu: float | None
+    mean_ttft: float | None
+    p99_ttft: float | None
+    mean_tpot: float | None
+    p99_tpot: float | None
+    mean_itl: float | None
+    p99_itl: float | None
+    mean_e2el: float | None
+    p99_e2el: float | None
+    vllm_image: str | None
+    vllm_commit: str | None
+    aiter_commit: str | None
+
+
+@dataclass(frozen=True)
 class RunView:
     bundle_id: UUID
     accepted_at: datetime
@@ -119,4 +152,5 @@ class DashboardData:
     performance: tuple[PerformanceView, ...] = ()
     accuracy: tuple[AccuracyView, ...] = ()
     runs: tuple[RunView, ...] = ()
+    run_data: tuple[RunDataRow, ...] = ()
     options: FilterOptions = field(default_factory=FilterOptions)
