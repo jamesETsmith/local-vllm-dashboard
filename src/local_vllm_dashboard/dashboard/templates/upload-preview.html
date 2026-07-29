@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Review upload · vLLM Results</title>
+    <link rel="stylesheet" href="{{ request.scope.get('root_path', '') }}/static/dashboard.css">
+  </head>
+  <body>
+    <header class="shell detail-header">
+      <a class="back-link" href="{{ request.scope.get('root_path', '') }}/upload">← Choose different files</a>
+      <p class="eyebrow">Upload preview</p>
+      <h1>Review discovered results</h1>
+      <p class="lede">Confirm only after the matched, repeated, missing, unmatched, and invalid entries look correct.</p>
+    </header>
+    <main class="shell upload-shell">
+      <section class="upload-summary">
+        <div><strong>{{ report.workload_count }}</strong><span>Workloads</span></div>
+        <div><strong>{{ report.config_count }}</strong><span>Configs</span></div>
+        <div><strong>{{ report.result_count }}</strong><span>Results</span></div>
+        <div><strong>{{ report.unmatched|length }}</strong><span>Unmatched</span></div>
+      </section>
+
+      {% for workload in report.workloads %}
+        <section class="panel upload-workload">
+          <div class="section-heading"><div><p class="eyebrow">{{ workload.recipe }}</p><h2>{{ workload.name }}</h2></div><p>{{ workload.configs|length }} benchmark config{% if workload.configs|length != 1 %}s{% endif %}</p></div>
+          <div class="upload-config-list">
+            {% for config in workload.configs %}
+              <article class="upload-config upload-status-{{ config.status }}">
+                <div><span class="status-pill">{{ config.status }}</span><strong>{{ config.name }}</strong></div>
+                {% if config.results %}<ul>{% for result in config.results %}<li>{{ result }}</li>{% endfor %}</ul>{% else %}<p>No corresponding result was found.</p>{% endif %}
+              </article>
+            {% endfor %}
+          </div>
+        </section>
+      {% endfor %}
+
+      {% if report.unmatched %}<section class="panel upload-notices"><h2>Unmatched results</h2><ul>{% for path in report.unmatched %}<li>{{ path }}</li>{% endfor %}</ul></section>{% endif %}
+      {% if report.invalid %}<section class="panel upload-notices danger"><h2>Invalid files</h2><ul>{% for path, error in report.invalid %}<li><strong>{{ path }}</strong>: {{ error }}</li>{% endfor %}</ul></section>{% endif %}
+      {% if not report.workloads %}<section class="panel empty"><h3>No workloads discovered</h3><p>Check that the upload contains perf-eval workload YAML and benchmark result JSON files.</p></section>{% endif %}
+
+      <form class="confirm-upload" action="{{ request.scope.get('root_path', '') }}/upload/confirm" method="post">
+        <input type="hidden" name="token" value="{{ token }}">
+        <input type="hidden" name="confirmation" value="{{ confirmation }}">
+        <button type="submit" {% if report.result_count == 0 %}disabled{% endif %}>Confirm ingestion of {{ report.result_count }} result{% if report.result_count != 1 %}s{% endif %}</button>
+      </form>
+    </main>
+  </body>
+</html>

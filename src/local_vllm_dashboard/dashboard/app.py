@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from local_vllm_dashboard.dashboard.chart import chart_json_data, performance_chart
 from local_vllm_dashboard.dashboard.models import DashboardFilters
 from local_vllm_dashboard.dashboard.repository import DashboardRepository
+from local_vllm_dashboard.dashboard.upload_routes import register_upload_routes
 
 ROOT = Path(__file__).parent
 TEMPLATES = Jinja2Templates(directory=ROOT / "templates")
@@ -26,13 +27,26 @@ def optional_int(value: str | None) -> int | None:
         return None
 
 
-def create_dashboard_app(factory: sessionmaker[Session]) -> FastAPI:
+def create_dashboard_app(
+    factory: sessionmaker[Session],
+    *,
+    ingest_token: str,
+    upload_staging_dir: Path,
+) -> FastAPI:
     app = FastAPI(title="Local vLLM Dashboard")
     app.mount("/static", StaticFiles(directory=ROOT / "static"), name="dashboard-static")
 
     def get_session() -> Iterator[Session]:
         with factory() as session:
             yield session
+
+    register_upload_routes(
+        app,
+        TEMPLATES,
+        get_session,
+        ingest_token,
+        upload_staging_dir,
+    )
 
     @app.get("/", response_class=HTMLResponse, name="dashboard")
     def dashboard(

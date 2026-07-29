@@ -43,6 +43,11 @@ def test_repository_loads_all_dashboard_views() -> None:
     assert len(data.performance) == 1
     assert len(data.accuracy) == 1
     assert len(data.runs) == 2
+    assert len(data.run_data) == 1
+    assert data.run_data[0].hardware == "MI355X"
+    assert data.run_data[0].tensor_parallel_size == 4
+    assert data.run_data[0].total_token_throughput_per_gpu == 739.15939605178
+    assert data.run_data[0].mean_ttft == 0.24936232599429786
     assert data.options.hardware == ("MI355X",)
     assert data.options.tasks == ("gsm8k",)
     assert data.options.prefix_cache_tokens == (40000,)

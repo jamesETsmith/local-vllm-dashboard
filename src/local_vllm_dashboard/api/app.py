@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     ingest_token: str
     max_request_bytes: int = 4_194_304
     max_artifact_bytes: int = 1_048_576
+    upload_staging_dir: Path = Path(".upload-staging")
 
 
 class IngestResponse(BaseModel):
@@ -53,7 +54,15 @@ def create_app(
     selected_settings = settings or Settings()
     factory = session_factory or make_session_factory(make_engine(selected_settings.database_url))
     app = FastAPI(title="Local vLLM Dashboard Ingestion API")
-    app.mount("/dashboard", create_dashboard_app(factory), name="dashboard")
+    app.mount(
+        "/dashboard",
+        create_dashboard_app(
+            factory,
+            ingest_token=selected_settings.ingest_token,
+            upload_staging_dir=selected_settings.upload_staging_dir,
+        ),
+        name="dashboard",
+    )
 
     @app.get("/", include_in_schema=False)
     def dashboard_redirect() -> RedirectResponse:

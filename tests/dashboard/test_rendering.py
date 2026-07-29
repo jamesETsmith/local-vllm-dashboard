@@ -70,6 +70,9 @@ def test_performance_dashboard_renders_normalized_results() -> None:
     assert "https://github.com/jamesETsmith/local-vllm-dashboard" in response.text
     assert "prefix-cache-performance-mi355x" in response.text
     assert "token/s/gpu" in response.text
+    assert "TP 4" in response.text
+    assert "DP 1" in response.text
+    assert "EP off" in response.text
     assert "39 failed" in response.text
 
 
@@ -89,8 +92,16 @@ def test_runs_dashboard_renders_provenance() -> None:
 
     assert response.status_code == 200
     assert "Runs &amp; Data" in response.text
+    assert "Flattened observations" in response.text
+    assert "Total tok/s/GPU" in response.text
+    assert "Mean TTFT (s)" in response.text
+    assert "dataframe-table" in response.text
+    assert "auto-filters.js" in response.text
+    assert "Apply filters" not in response.text
+    assert "Reset filters" in response.text
+    assert "TP" in response.text
+    assert "EP" in response.text
     assert "example-registry/vllm-openai:test" in response.text
-    assert "artifact references" in response.text
     assert 'class="run-row"' in response.text
     assert "run-links.js" in response.text
 
@@ -132,6 +143,8 @@ def test_dashboard_preserves_filters_in_rendered_form() -> None:
     assert response.status_code == 200
     assert "<option selected>MI355X</option>" in response.text
     assert "<option selected>4</option>" in response.text
+    assert 'href="?tab=runs"' in response.text
+    assert "hardware=MI355X&amp;tab=runs" not in response.text
     assert 'name="prefix_cache_tokens"' in response.text
     assert '<option value="40000" selected>40000</option>' in response.text
     assert 'name="workload"' not in response.text

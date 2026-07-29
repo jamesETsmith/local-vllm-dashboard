@@ -21,6 +21,7 @@ from local_vllm_dashboard.dashboard.models import (
     FilterOptions,
     MetricView,
     PerformanceView,
+    RunDataRow,
     RunDetailView,
     RunView,
     SourceArtifactView,
@@ -46,6 +47,10 @@ def parse_datetime(value: object) -> datetime:
 
 def mapping(value: object) -> dict[str, Any]:
     return cast(dict[str, Any], value) if isinstance(value, dict) else {}
+
+
+def metric_value(observation: ObservationRecord, name: str) -> float | None:
+    return next((metric.value for metric in observation.metrics if metric.name == name), None)
 
 
 def metrics_view(observation: ObservationRecord) -> tuple[MetricView, ...]:
@@ -179,10 +184,21 @@ class DashboardRepository:
             for bundle in bundles
             if self.matches_run(self.run_view(bundle), selected_filters)
         )
+        run_data = tuple(
+            self.run_data_view(bundle, observation)
+            for bundle in bundles
+            for observation in bundle.observations
+            if observation.kind == "performance"
+            and self.matches_performance(
+                self.performance_view(bundle, observation),
+                selected_filters,
+            )
+        )
         return DashboardData(
             performance=performance,
             accuracy=accuracy,
             runs=runs,
+            run_data=run_data,
             options=self.filter_options(all_performance, all_accuracy),
         )
 
@@ -257,6 +273,7 @@ class DashboardRepository:
     ) -> PerformanceView:
         payload = bundle.payload
         environment = mapping(payload.get("environment"))
+        environment_extensions = mapping(environment.get("extensions"))
         workload = mapping(payload.get("workload"))
         run = mapping(payload.get("run"))
         configuration = observation.configuration
@@ -268,6 +285,9 @@ class DashboardRepository:
             model=str(workload.get("model", "unknown")),
             workload=str(workload.get("name", "unknown")),
             precision=optional_string(environment.get("precision")),
+            tensor_parallel_size=optional_int(environment.get("tensor_parallel_size")),
+            data_parallel_size=optional_int(environment.get("data_parallel_size")),
+            expert_parallel=environment_extensions.get("expert_parallel") is True,
             input_tokens=optional_int(configuration.get("input_tokens")),
             output_tokens=optional_int(configuration.get("output_tokens")),
             prefix_cache_tokens=optional_int(configuration.get("prefix_cache_tokens")),
@@ -275,6 +295,54 @@ class DashboardRepository:
             completed_requests=optional_int(configuration.get("completed")),
             failed_requests=optional_int(configuration.get("failed")),
             metrics=metrics_view(observation),
+        )
+
+    def run_data_view(
+        self,
+        bundle: BundleRecord,
+        observation: ObservationRecord,
+    ) -> RunDataRow:
+        payload = bundle.payload
+        environment = mapping(payload.get("environment"))
+        environment_extensions = mapping(environment.get("extensions"))
+        workload = mapping(payload.get("workload"))
+        run = mapping(payload.get("run"))
+        vllm = mapping(run.get("vllm"))
+        configuration = observation.configuration
+        return RunDataRow(
+            bundle_id=bundle.bundle_id,
+            completed_at=parse_datetime(run.get("completed_at")),
+            hardware=str(environment.get("accelerator", "unknown")),
+            accelerator_count=int(environment.get("accelerator_count", 0)),
+            model=str(workload.get("model", "unknown")),
+            precision=optional_string(environment.get("precision")),
+            tensor_parallel_size=optional_int(environment.get("tensor_parallel_size")),
+            data_parallel_size=optional_int(environment.get("data_parallel_size")),
+            expert_parallel=environment_extensions.get("expert_parallel") is True,
+            input_tokens=optional_int(configuration.get("input_tokens")),
+            output_tokens=optional_int(configuration.get("output_tokens")),
+            prefix_cache_tokens=optional_int(configuration.get("prefix_cache_tokens")),
+            concurrency=optional_int(configuration.get("max_concurrency")),
+            completed_requests=optional_int(configuration.get("completed")),
+            failed_requests=optional_int(configuration.get("failed")),
+            total_token_throughput_per_gpu=metric_value(
+                observation, "total_token_throughput_per_gpu"
+            ),
+            output_token_throughput_per_gpu=metric_value(
+                observation, "output_token_throughput_per_gpu"
+            ),
+            request_throughput_per_gpu=metric_value(observation, "request_throughput_per_gpu"),
+            mean_ttft=metric_value(observation, "mean_ttft"),
+            p99_ttft=metric_value(observation, "p99_ttft"),
+            mean_tpot=metric_value(observation, "mean_tpot"),
+            p99_tpot=metric_value(observation, "p99_tpot"),
+            mean_itl=metric_value(observation, "mean_itl"),
+            p99_itl=metric_value(observation, "p99_itl"),
+            mean_e2el=metric_value(observation, "mean_e2el"),
+            p99_e2el=metric_value(observation, "p99_e2el"),
+            vllm_image=optional_string(vllm.get("image")),
+            vllm_commit=optional_string(vllm.get("commit")),
+            aiter_commit=optional_string(environment_extensions.get("aiter_commit")),
         )
 
     def accuracy_view(
