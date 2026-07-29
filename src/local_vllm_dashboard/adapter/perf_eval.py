@@ -82,6 +82,14 @@ def find_bench_config(recipe: dict[str, Any], result: dict[str, Any]) -> dict[st
     return matches[0]
 
 
+def serve_arg_value(serve_args: str, flag: str, default: int) -> int:
+    parts = serve_args.split()
+    try:
+        return int(parts[parts.index(flag) + 1])
+    except (ValueError, IndexError):
+        return default
+
+
 def performance_metrics(result: dict[str, Any], parallelism: int) -> tuple[Metric, ...]:
     if parallelism < 1:
         raise ValueError("throughput parallelism must be positive")
@@ -119,7 +127,15 @@ def build_performance_bundle(
     config_args = config.get("args", {})
     vllm = recipe["vllm"]
     bench_metadata = recipe.get("vllm_bench", {}).get("metadata", {})
-    parallelism = int(bench_metadata["tp"])
+    serve_args = str(vllm.get("serve_args", ""))
+    tensor_parallel = serve_arg_value(
+        serve_args,
+        "--tensor-parallel-size",
+        int(bench_metadata.get("tp", 1)),
+    )
+    data_parallel = serve_arg_value(serve_args, "--data-parallel-size", 1)
+    expert_parallel = "--enable-expert-parallel" in serve_args.split()
+    throughput_parallelism = tensor_parallel * data_parallel
     gpu = str(recipe["gpu"])
     is_rocm = gpu.upper().startswith("MI")
     if container_revisions is None:
@@ -178,10 +194,16 @@ def build_performance_bundle(
             accelerator=str(recipe["gpu"]),
             accelerator_count=int(recipe["num_gpus"]),
             precision=str(bench_metadata["precision"]) if bench_metadata.get("precision") else None,
-            tensor_parallel_size=parallelism,
-            extensions={"aiter_commit": container_revisions.aiter_commit}
-            if container_revisions.aiter_commit
-            else {},
+            tensor_parallel_size=tensor_parallel,
+            data_parallel_size=data_parallel,
+            extensions={
+                **(
+                    {"aiter_commit": container_revisions.aiter_commit}
+                    if container_revisions.aiter_commit
+                    else {}
+                ),
+                "expert_parallel": expert_parallel,
+            },
         ),
         observations=(
             Observation(
@@ -200,7 +222,7 @@ def build_performance_bundle(
                     "completed": int(result["completed"]),
                     "failed": int(result["failed"]),
                 },
-                metrics=performance_metrics(result, parallelism),
+                metrics=performance_metrics(result, throughput_parallelism),
                 source=ObservationSource(adapter="perf-eval", adapter_version=__version__),
             ),
         ),

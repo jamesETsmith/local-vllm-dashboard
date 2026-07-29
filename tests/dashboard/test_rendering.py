@@ -70,6 +70,9 @@ def test_performance_dashboard_renders_normalized_results() -> None:
     assert "https://github.com/jamesETsmith/local-vllm-dashboard" in response.text
     assert "prefix-cache-performance-mi355x" in response.text
     assert "token/s/gpu" in response.text
+    assert "TP 4" in response.text
+    assert "DP 1" in response.text
+    assert "EP off" in response.text
     assert "39 failed" in response.text
 
 

@@ -257,6 +257,7 @@ class DashboardRepository:
     ) -> PerformanceView:
         payload = bundle.payload
         environment = mapping(payload.get("environment"))
+        environment_extensions = mapping(environment.get("extensions"))
         workload = mapping(payload.get("workload"))
         run = mapping(payload.get("run"))
         configuration = observation.configuration
@@ -268,6 +269,9 @@ class DashboardRepository:
             model=str(workload.get("model", "unknown")),
             workload=str(workload.get("name", "unknown")),
             precision=optional_string(environment.get("precision")),
+            tensor_parallel_size=optional_int(environment.get("tensor_parallel_size")),
+            data_parallel_size=optional_int(environment.get("data_parallel_size")),
+            expert_parallel=environment_extensions.get("expert_parallel") is True,
             input_tokens=optional_int(configuration.get("input_tokens")),
             output_tokens=optional_int(configuration.get("output_tokens")),
             prefix_cache_tokens=optional_int(configuration.get("prefix_cache_tokens")),

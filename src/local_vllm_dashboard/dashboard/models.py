@@ -44,6 +44,9 @@ class PerformanceView:
     model: str
     workload: str
     precision: str | None
+    tensor_parallel_size: int | None
+    data_parallel_size: int | None
+    expert_parallel: bool
     input_tokens: int | None
     output_tokens: int | None
     prefix_cache_tokens: int | None

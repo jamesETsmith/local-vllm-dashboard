@@ -92,6 +92,7 @@ td strong, td small { display: block; }
 td strong { font-weight: 650; }
 td small { margin-top: 5px; color: var(--muted); line-height: 1.35; }
 .chip { display: inline-block; margin: 0 4px 5px 0; padding: 5px 8px; border: 1px solid #e2dcff; border-radius: 8px; color: var(--accent-dark); background: var(--accent-soft); font-size: .69rem; font-weight: 600; white-space: nowrap; }
+.parallelism-chip { border-color: #cce8d8; color: #176c49; background: #eaf8f0; font-weight: 750; }
 .metric-list { display: grid; grid-template-columns: repeat(2, minmax(132px, 1fr)); gap: 8px; min-width: 300px; }
 .metric-list span { padding: 8px 10px; border-radius: 10px; color: var(--muted); background: var(--surface-soft); }
 .metric-list b { color: var(--ink); font-size: .9rem; }

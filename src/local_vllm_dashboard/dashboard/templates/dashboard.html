@@ -96,7 +96,7 @@
                 <td><time>{{ row.completed_at.strftime('%Y-%m-%d %H:%M') }}</time></td>
                 <td><strong>{{ row.hardware }}</strong><small>{{ row.accelerator_count }} GPU{% if row.accelerator_count != 1 %}s{% endif %}</small></td>
                 <td><strong>{{ row.model }}</strong><small>{{ row.workload }}</small></td>
-                <td><span class="chip">{{ row.input_tokens or '?' }} in</span><span class="chip">{{ row.output_tokens or '?' }} out</span><span class="chip">c={{ row.concurrency or '?' }}</span>{% if row.precision %}<span class="chip">{{ row.precision }}</span>{% endif %}</td>
+                <td><span class="chip">{{ row.input_tokens or '?' }} in</span><span class="chip">{{ row.output_tokens or '?' }} out</span><span class="chip">c={{ row.concurrency or '?' }}</span><span class="chip parallelism-chip">TP {{ row.tensor_parallel_size or 1 }}</span><span class="chip parallelism-chip">DP {{ row.data_parallel_size or 1 }}</span><span class="chip parallelism-chip">EP {{ 'on' if row.expert_parallel else 'off' }}</span>{% if row.precision %}<span class="chip">{{ row.precision }}</span>{% endif %}</td>
                 <td><div class="metric-list">{% for metric in row.metrics %}<span><b>{{ '%.4g'|format(metric.value) }}</b> {{ metric.unit }}<small>{{ metric.name|replace('_', ' ') }}</small></span>{% endfor %}</div></td>
                 <td><strong>{{ row.completed_requests if row.completed_requests is not none else '?' }}</strong> completed<small class="{{ 'danger' if row.failed_requests else '' }}">{{ row.failed_requests or 0 }} failed</small></td>
               </tr>{% endfor %}</tbody>

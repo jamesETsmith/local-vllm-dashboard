@@ -18,6 +18,9 @@ def test_build_performance_bundle_from_real_shape() -> None:
     assert bundle.has_valid_idempotency_key()
     assert bundle.workload.name == "prefix-cache-performance-mi355x"
     assert bundle.environment.accelerator == "MI355X"
+    assert bundle.environment.tensor_parallel_size == 4
+    assert bundle.environment.data_parallel_size == 1
+    assert bundle.environment.extensions.get("expert_parallel") is False
     assert bundle.observations[0].configuration["completed"] == 1
     assert bundle.observations[0].configuration["failed"] == 39
     assert bundle.observations[0].configuration["prefix_cache_tokens"] == 40000
