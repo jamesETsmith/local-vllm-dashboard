@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Upload problem · vLLM Results</title>
+    <link rel="stylesheet" href="{{ request.scope.get('root_path', '') }}/static/dashboard.css">
+  </head>
+  <body>
+    <header class="shell detail-header">
+      <a class="back-link" href="{{ request.scope.get('root_path', '') }}/upload">← Back to upload</a>
+      <p class="eyebrow danger">Upload could not be processed</p>
+      <h1>Check the uploaded files</h1>
+      <p class="lede">{{ message }}</p>
+    </header>
+    <main class="shell upload-shell">
+      <section class="panel upload-error">
+        <h2>How to fix it</h2>
+        <p>Upload a folder or tar archive containing only workload YAML and benchmark result JSON files. Remove unsupported files, links, oversized files, or unsafe paths, then try again.</p>
+        {% if details %}<pre>{{ details }}</pre>{% endif %}
+      </section>
+    </main>
+  </body>
+</html>

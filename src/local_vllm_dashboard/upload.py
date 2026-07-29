@@ -53,11 +53,15 @@ def archive_files(content: bytes) -> tuple[UploadedFile, ...]:
     except tarfile.TarError as error:
         raise ValueError("invalid tar archive") from error
     with archive:
+        unsupported = []
         for member in archive.getmembers():
             if member.isdir():
                 continue
             if not member.isfile():
                 raise ValueError(f"unsupported archive member: {member.name}")
+            if PurePosixPath(member.name).suffix.lower() not in ALLOWED_SUFFIXES:
+                unsupported.append(member.name)
+                continue
             path = safe_relative_path(member.name)
             if member.size > MAX_FILE_BYTES:
                 raise ValueError(f"file is too large: {member.name}")
@@ -68,6 +72,9 @@ def archive_files(content: bytes) -> tuple[UploadedFile, ...]:
             if extracted is None:
                 raise ValueError(f"could not read archive member: {member.name}")
             files.append(UploadedFile(str(path), extracted.read()))
+    if not files and unsupported:
+        preview = ", ".join(unsupported[:5])
+        raise ValueError(f"archive contains no YAML or JSON files; unsupported: {preview}")
     return tuple(files)
 
 
@@ -86,10 +93,14 @@ def validate_files(files: tuple[UploadedFile, ...]) -> tuple[UploadedFile, ...]:
         total += len(item.content)
         if total > MAX_TOTAL_BYTES:
             raise ValueError("upload exceeds total size limit")
+        if path.suffix.lower() not in ALLOWED_SUFFIXES:
+            continue
         if str(path) in seen:
             raise ValueError(f"duplicate uploaded path: {item.path}")
         seen.add(str(path))
         checked.append(UploadedFile(str(path), item.content))
+    if not checked:
+        raise ValueError("no supported YAML or JSON files were uploaded")
     return tuple(checked)
 
 

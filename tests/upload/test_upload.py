@@ -23,6 +23,19 @@ def test_archive_rejects_path_traversal() -> None:
         archive_files(make_archive({"../secret.yaml": b"name: bad"}))
 
 
+def test_archive_ignores_unrelated_regular_files() -> None:
+    files = archive_files(
+        make_archive(
+            {
+                "workloads/demo.yaml": b"name: demo",
+                "notes/readme.txt": b"not benchmark data",
+            }
+        )
+    )
+
+    assert [item.path for item in files] == ["workloads/demo.yaml"]
+
+
 def test_archive_rejects_links() -> None:
     buffer = io.BytesIO()
     with tarfile.open(fileobj=buffer, mode="w:gz") as archive:

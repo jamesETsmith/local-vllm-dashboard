@@ -162,6 +162,10 @@ details summary { padding: 18px 22px; cursor: pointer; color: var(--accent-dark)
 .confirm-upload { display: flex; justify-content: flex-end; }
 .confirm-upload button:disabled { opacity: .45; cursor: not-allowed; }
 .upload-actions { display: flex; align-items: center; gap: 18px; }
+.upload-error { padding: 26px; }
+.upload-error h2 { margin-bottom: 10px; }
+.upload-error p { max-width: 720px; color: var(--muted); line-height: 1.6; }
+.upload-error pre { padding: 16px; overflow: auto; border-radius: 10px; background: var(--surface-soft); }
 
 @media (max-width: 1080px) {
   .detail-layout { grid-template-columns: minmax(0, 1fr); }
