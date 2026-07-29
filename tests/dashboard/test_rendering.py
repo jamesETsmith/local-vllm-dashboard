@@ -97,6 +97,8 @@ def test_runs_dashboard_renders_provenance() -> None:
     assert "Mean TTFT (s)" in response.text
     assert "dataframe-table" in response.text
     assert "auto-filters.js" in response.text
+    assert "Apply filters" not in response.text
+    assert "Reset filters" in response.text
     assert "TP" in response.text
     assert "EP" in response.text
     assert "example-registry/vllm-openai:test" in response.text
@@ -141,6 +143,8 @@ def test_dashboard_preserves_filters_in_rendered_form() -> None:
     assert response.status_code == 200
     assert "<option selected>MI355X</option>" in response.text
     assert "<option selected>4</option>" in response.text
+    assert 'href="?tab=runs"' in response.text
+    assert "hardware=MI355X&amp;tab=runs" not in response.text
     assert 'name="prefix_cache_tokens"' in response.text
     assert '<option value="40000" selected>40000</option>' in response.text
     assert 'name="workload"' not in response.text
