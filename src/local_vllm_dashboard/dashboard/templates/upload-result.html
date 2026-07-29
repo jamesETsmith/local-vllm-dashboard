@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Upload complete · vLLM Results</title>
+    <link rel="stylesheet" href="{{ request.scope.get('root_path', '') }}/static/dashboard.css">
+  </head>
+  <body>
+    <header class="shell detail-header">
+      <p class="eyebrow">Upload complete</p>
+      <h1>Results processed</h1>
+      <p class="lede">Accepted {{ result.accepted }}, duplicate {{ result.duplicate }}, failed {{ result.failed|length }}.</p>
+    </header>
+    <main class="shell upload-shell">
+      {% if result.failed %}<section class="panel upload-report"><h2>Failures</h2><pre>{% for path, error in result.failed %}{{ path }}: {{ error }}
+{% endfor %}</pre></section>{% endif %}
+      <div class="upload-actions"><a class="upload-link" href="{{ request.scope.get('root_path', '') }}/">View dashboard</a><a href="{{ request.scope.get('root_path', '') }}/upload">Upload more results</a></div>
+    </main>
+  </body>
+</html>

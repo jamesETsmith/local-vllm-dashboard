@@ -86,6 +86,15 @@ uv run local-vllm-dashboard ingest-directory \
 
 The command reports accepted, duplicate, and failed submissions. If the configured local Docker image or matching perf-eval container is available, ingestion also records exact vLLM and ROCm AITER revisions when detectable.
 
+## Browser upload
+
+Open `http://<VPN_IP>:8010/dashboard/upload` or select **Upload results** on the dashboard. Enter the ingestion token, then choose either:
+
+- a local folder containing workload YAML and result JSON files; or
+- a `.tar`, `.tar.gz`, or `.tgz` archive preserving their directory structure.
+
+The server stages only YAML and JSON files, rejects unsafe archive paths, links, oversized files, and excessive uploads, then shows the same discovery report used by the CLI. Review matched, repeated, missing, unmatched, and invalid entries before confirming ingestion.
+
 ## Container deployment
 
 Docker Compose uses PostgreSQL and requires the same persistent token:

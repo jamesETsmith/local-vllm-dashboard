@@ -13,7 +13,10 @@
         <p class="eyebrow">Local benchmark observatory</p>
         <h1>vLLM Results</h1>
         <p class="lede">Compare standardized performance and accuracy results without losing the settings behind them.</p>
-        <a class="github-link" href="https://github.com/jamesETsmith/local-vllm-dashboard">View project on GitHub <span aria-hidden="true">↗</span></a>
+        <div class="header-links">
+          <a class="upload-link" href="{{ request.scope.get('root_path', '') }}/upload">Upload results</a>
+          <a class="github-link" href="https://github.com/jamesETsmith/local-vllm-dashboard">View project on GitHub <span aria-hidden="true">↗</span></a>
+        </div>
       </div>
       <div class="stat-grid" aria-label="Result counts">
         <div><strong>{{ data.performance|length }}</strong><span>Performance</span></div>

@@ -32,7 +32,10 @@ h1 { margin-bottom: 10px; font-size: clamp(2.35rem, 5vw, 4.5rem); font-weight: 8
 h2 { margin-bottom: 0; font-size: 1.65rem; font-weight: 750; letter-spacing: -.035em; }
 .eyebrow { margin-bottom: 10px; color: var(--accent); font-size: .72rem; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; }
 .lede { max-width: 650px; margin-bottom: 0; color: var(--muted); font-size: 1.02rem; line-height: 1.65; }
-.github-link { display: inline-flex; align-items: center; gap: 7px; margin-top: 18px; color: var(--ink); font-size: .84rem; font-weight: 700; text-decoration: none; }
+.header-links { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-top: 18px; }
+.github-link { display: inline-flex; align-items: center; gap: 7px; color: var(--ink); font-size: .84rem; font-weight: 700; text-decoration: none; }
+.upload-link { padding: 9px 14px; border-radius: 10px; color: white; background: var(--accent); font-size: .82rem; font-weight: 700; text-decoration: none; box-shadow: 0 7px 16px rgba(117, 89, 242, .18); }
+.upload-link:hover { color: white; background: var(--accent-dark); }
 .github-link span { color: var(--accent); font-size: 1rem; transition: transform .18s ease; }
 .github-link:hover { color: var(--accent-dark); }
 .github-link:hover span { transform: translate(2px, -2px); }
@@ -146,6 +149,19 @@ details summary { padding: 18px 22px; cursor: pointer; color: var(--accent-dark)
 .highlighted-code .nt, .highlighted-code .na { color: #3569b4; }
 .highlighted-code .nb, .highlighted-code .nv { color: #a84780; }
 .highlighted-code .p { color: #615d69; }
+
+.upload-shell { max-width: 980px; padding-bottom: 60px; }
+.upload-form { overflow: visible; }
+.upload-fields { display: grid; gap: 18px; padding: 26px; }
+.upload-fields > label:first-child { display: grid; gap: 8px; color: var(--muted); font-size: .76rem; font-weight: 700; }
+.upload-fields input[type="password"] { padding: 12px; border: 1px solid var(--line); border-radius: 10px; font: inherit; }
+.drop-zone { display: grid; gap: 10px; padding: 28px; border: 1px dashed #b9afd8; border-radius: 16px; color: var(--accent-dark); background: #faf8ff; font-weight: 700; text-align: center; cursor: pointer; }
+.drop-zone input { margin-inline: auto; max-width: 100%; color: var(--muted); font-weight: 400; }
+.upload-or { color: var(--muted); font-size: .75rem; font-weight: 700; text-align: center; text-transform: uppercase; }
+.upload-report pre { max-height: 620px; margin: 0; padding: 24px; overflow: auto; white-space: pre; background: #f8f7fb; font: .8rem/1.6 ui-monospace, monospace; }
+.confirm-upload { display: flex; justify-content: flex-end; }
+.confirm-upload button:disabled { opacity: .45; cursor: not-allowed; }
+.upload-actions { display: flex; align-items: center; gap: 18px; }
 
 @media (max-width: 1080px) {
   .detail-layout { grid-template-columns: minmax(0, 1fr); }

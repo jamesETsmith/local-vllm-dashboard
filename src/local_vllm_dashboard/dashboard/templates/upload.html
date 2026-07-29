@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Upload results · vLLM Results</title>
+    <link rel="stylesheet" href="{{ request.scope.get('root_path', '') }}/static/dashboard.css">
+  </head>
+  <body>
+    <header class="shell detail-header">
+      <a class="back-link" href="{{ request.scope.get('root_path', '') }}/">← Back to dashboard</a>
+      <p class="eyebrow">Human upload</p>
+      <h1>Upload benchmark results</h1>
+      <p class="lede">Choose a folder containing workload YAML and result JSON files, or upload a tar archive that preserves their directory structure.</p>
+    </header>
+    <main class="shell upload-shell">
+      <form class="panel upload-form" action="{{ request.scope.get('root_path', '') }}/upload/preview" method="post" enctype="multipart/form-data">
+        <div class="section-heading"><div><p class="eyebrow">Step 1</p><h2>Select data</h2></div><p>Only YAML and JSON files are accepted. Nothing is stored until you review and confirm the discovery report.</p></div>
+        <div class="upload-fields">
+          <label>Ingestion token<input type="password" name="token" required autocomplete="off"></label>
+          <label class="drop-zone">Folder of configs and results<input type="file" name="files" webkitdirectory directory multiple></label>
+          <span class="upload-or">or</span>
+          <label class="drop-zone">Tar archive<input type="file" name="archive" accept=".tar,.tar.gz,.tgz,application/x-tar,application/gzip"></label>
+          <button type="submit">Review upload</button>
+        </div>
+      </form>
+    </main>
+  </body>
+</html>
