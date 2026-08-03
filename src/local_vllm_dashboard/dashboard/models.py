@@ -99,7 +99,7 @@ class RunDataRow:
     p99_e2el: float | None
     vllm_image: str | None
     vllm_commit: str | None
-    aiter_commit: str | None
+    dependency_revisions: tuple[tuple[str, str], ...]
 
 
 @dataclass(frozen=True)
@@ -113,7 +113,7 @@ class RunView:
     accelerator_count: int
     vllm_image: str | None
     vllm_commit: str | None
-    aiter_commit: str | None
+    dependency_revisions: tuple[tuple[str, str], ...]
     container: str | None
     runner_kind: str
     observation_count: int

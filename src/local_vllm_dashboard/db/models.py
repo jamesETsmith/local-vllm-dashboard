@@ -37,6 +37,21 @@ class BundleRecord(Base):
         cascade="all, delete-orphan",
         back_populates="bundle",
     )
+    dependency_revisions: Mapped[list[DependencyRevisionRecord]] = relationship(
+        cascade="all, delete-orphan",
+        back_populates="bundle",
+    )
+
+
+class DependencyRevisionRecord(Base):
+    __tablename__ = "dependency_revisions"
+    __table_args__ = (UniqueConstraint("bundle_id", "name"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    bundle_id: Mapped[UUID] = mapped_column(ForeignKey("bundles.bundle_id"), nullable=False)
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    revision: Mapped[str] = mapped_column(String(128), nullable=False)
+    bundle: Mapped[BundleRecord] = relationship(back_populates="dependency_revisions")
 
 
 class ArtifactRecord(Base):

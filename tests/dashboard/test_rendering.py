@@ -8,6 +8,7 @@ from sqlalchemy.pool import StaticPool
 from local_vllm_dashboard.adapter import build_accuracy_bundle, build_performance_bundle
 from local_vllm_dashboard.api import Settings, create_app
 from local_vllm_dashboard.artifacts import artifact_contents
+from local_vllm_dashboard.container_revisions import ContainerRevisions
 from local_vllm_dashboard.db import Base, BundleRepository, make_session_factory
 
 FIXTURES = Path(__file__).parents[1] / "fixtures" / "perf_eval"
@@ -25,7 +26,14 @@ def dashboard_client(*, populated: bool = True) -> TestClient:
         with factory() as session:
             recipe = FIXTURES / "prefix_cache_workload.yaml"
             result = FIXTURES / "prefix_cache_partial_failure_bench.json"
-            performance = build_performance_bundle(recipe, result)
+            performance = build_performance_bundle(
+                recipe,
+                result,
+                container_revisions=ContainerRevisions(
+                    vllm_commit="abcdef0",
+                    aiter_commit="fedcba0",
+                ),
+            )
             BundleRepository(session).save(
                 performance,
                 artifact_contents(performance, (recipe, result)),
@@ -102,6 +110,8 @@ def test_runs_dashboard_renders_provenance() -> None:
     assert "TP" in response.text
     assert "EP" in response.text
     assert "example-registry/vllm-openai:test" in response.text
+    assert "Dependency commits" in response.text
+    assert "aiter=fedcba0" in response.text
     assert 'class="run-row"' in response.text
     assert "run-links.js" in response.text
 
@@ -115,6 +125,8 @@ def test_run_detail_renders_full_configuration() -> None:
 
     assert response.status_code == 200
     assert "Run provenance" in response.text
+    assert "AITER commit" in response.text
+    assert "fedcba0" in response.text
     assert "Perf Data" in response.text
     assert "Reproduce Results" in response.text
     assert "local-vllm-dashboard Info" in response.text

@@ -8,6 +8,7 @@ from local_vllm_dashboard.artifacts import artifact_contents
 from local_vllm_dashboard.contracts import Bundle
 from local_vllm_dashboard.db import initialize_schema, make_engine
 from local_vllm_dashboard.ingest_directory import ingest_directories, render_report
+from local_vllm_dashboard.package_results import create_results_archive
 from local_vllm_dashboard.publisher import Publisher
 
 
@@ -38,6 +39,12 @@ def build_parser() -> argparse.ArgumentParser:
     ingest_directory.add_argument("--endpoint")
     ingest_directory.add_argument("--token")
     ingest_directory.add_argument("--container")
+
+    package_results = commands.add_parser("package-results")
+    package_results.add_argument("--workloads-dir", type=Path, required=True)
+    package_results.add_argument("--results-dir", type=Path, required=True)
+    package_results.add_argument("--output", type=Path, required=True)
+    package_results.add_argument("--container")
 
     commands.add_parser("init-db")
     return parser
@@ -71,6 +78,19 @@ def main() -> None:
             )
             for path, error in summary.failed:
                 print(f"  - {path}: {error}")
+        return
+    if args.command == "package-results":
+        report, summary = create_results_archive(
+            args.workloads_dir,
+            args.results_dir,
+            args.output,
+            container=args.container,
+        )
+        print(render_report(report, args.workloads_dir, args.results_dir))
+        print(
+            f"\nCreated {summary.archive} with {summary.workloads} workload(s), "
+            f"{summary.results} result(s), and {summary.revisions} revision record(s)"
+        )
         return
     if args.command == "adapt-perf":
         bundle = build_performance_bundle(args.recipe, args.result)

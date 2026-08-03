@@ -15,9 +15,11 @@ from local_vllm_dashboard.contracts import Bundle
 from local_vllm_dashboard.db.models import (
     ArtifactRecord,
     BundleRecord,
+    DependencyRevisionRecord,
     MetricRecord,
     ObservationRecord,
 )
+from local_vllm_dashboard.db.schema import dependency_commits
 
 
 class SaveStatus(StrEnum):
@@ -56,6 +58,10 @@ class BundleRepository:
             schema_version=bundle.schema_version,
             accepted_at=datetime.now(UTC),
             payload=bundle.model_dump(mode="json"),
+            dependency_revisions=[
+                DependencyRevisionRecord(name=name, revision=revision)
+                for name, revision in dependency_commits(bundle.model_dump(mode="json"))
+            ],
             artifacts=[
                 ArtifactRecord(
                     path=declaration.path,

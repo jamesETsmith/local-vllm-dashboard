@@ -10,7 +10,11 @@ from uuid import UUID, uuid4
 import yaml
 
 from local_vllm_dashboard import __version__
-from local_vllm_dashboard.container_revisions import ContainerRevisions, discover_revisions
+from local_vllm_dashboard.container_revisions import (
+    ContainerRevisions,
+    discover_revisions,
+    load_revisions,
+)
 from local_vllm_dashboard.contracts import (
     ArtifactRole,
     Bundle,
@@ -138,6 +142,9 @@ def build_performance_bundle(
     throughput_parallelism = tensor_parallel * data_parallel
     gpu = str(recipe["gpu"])
     is_rocm = gpu.upper().startswith("MI")
+    revision_path = recipe_path.with_name(f"{recipe_path.stem}.revisions.json")
+    if container_revisions is None and revision_path.is_file():
+        container_revisions = load_revisions(revision_path)
     if container_revisions is None:
         container_revisions = discover_revisions(
             str(recipe["name"]),

@@ -155,6 +155,7 @@ class DashboardRepository:
             select(BundleRecord)
             .options(
                 selectinload(BundleRecord.artifacts),
+                selectinload(BundleRecord.dependency_revisions),
                 selectinload(BundleRecord.observations).selectinload(ObservationRecord.metrics),
             )
             .order_by(BundleRecord.accepted_at.desc())
@@ -208,6 +209,7 @@ class DashboardRepository:
             .where(BundleRecord.bundle_id == bundle_id)
             .options(
                 selectinload(BundleRecord.artifacts),
+                selectinload(BundleRecord.dependency_revisions),
                 selectinload(BundleRecord.observations).selectinload(ObservationRecord.metrics),
             )
         )
@@ -342,7 +344,10 @@ class DashboardRepository:
             p99_e2el=metric_value(observation, "p99_e2el"),
             vllm_image=optional_string(vllm.get("image")),
             vllm_commit=optional_string(vllm.get("commit")),
-            aiter_commit=optional_string(environment_extensions.get("aiter_commit")),
+            dependency_revisions=tuple(
+                (revision.name.removesuffix("_commit"), revision.revision)
+                for revision in sorted(bundle.dependency_revisions, key=lambda item: item.name)
+            ),
         )
 
     def accuracy_view(
@@ -375,7 +380,6 @@ class DashboardRepository:
         vllm = mapping(run.get("vllm"))
         source = mapping(run.get("source"))
         source_extensions = mapping(source.get("extensions"))
-        environment_extensions = mapping(environment.get("extensions"))
         runner = mapping(run.get("runner"))
         return RunView(
             bundle_id=bundle.bundle_id,
@@ -387,7 +391,10 @@ class DashboardRepository:
             accelerator_count=int(environment.get("accelerator_count", 0)),
             vllm_image=optional_string(vllm.get("image")),
             vllm_commit=optional_string(vllm.get("commit")),
-            aiter_commit=optional_string(environment_extensions.get("aiter_commit")),
+            dependency_revisions=tuple(
+                (revision.name.removesuffix("_commit"), revision.revision)
+                for revision in sorted(bundle.dependency_revisions, key=lambda item: item.name)
+            ),
             container=optional_string(source_extensions.get("container")),
             runner_kind=str(runner.get("kind", "unknown")),
             observation_count=len(bundle.observations),

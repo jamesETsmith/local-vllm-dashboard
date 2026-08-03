@@ -11,6 +11,7 @@ from local_vllm_dashboard.artifacts import artifact_contents
 from local_vllm_dashboard.db import BundleRepository, SaveStatus
 
 ALLOWED_SUFFIXES = {".yaml", ".yml", ".json"}
+REVISION_SUFFIX = ".revisions.json"
 MAX_FILES = 500
 MAX_FILE_BYTES = 2 * 1024 * 1024
 MAX_TOTAL_BYTES = 32 * 1024 * 1024
@@ -42,6 +43,8 @@ def safe_relative_path(value: str) -> PurePosixPath:
         raise ValueError(f"unsafe path: {value}")
     if path.suffix.lower() not in ALLOWED_SUFFIXES:
         raise ValueError(f"unsupported file type: {value}")
+    if path.name.endswith(REVISION_SUFFIX) and len(path.parts) < 2:
+        raise ValueError(f"revision metadata must be stored beside a workload: {value}")
     return path
 
 
