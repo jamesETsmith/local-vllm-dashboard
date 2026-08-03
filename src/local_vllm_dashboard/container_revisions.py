@@ -3,7 +3,8 @@ from __future__ import annotations
 import json
 import re
 import subprocess  # nosec B404
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from pathlib import Path
 
 COMMIT_PATTERN = re.compile(r"^[0-9a-f]{7,40}$", re.IGNORECASE)
 
@@ -13,6 +14,30 @@ class ContainerRevisions:
     container: str | None = None
     vllm_commit: str | None = None
     aiter_commit: str | None = None
+
+
+def revisions_json(revisions: ContainerRevisions) -> bytes:
+    return (json.dumps(asdict(revisions), indent=2, sort_keys=True) + "\n").encode()
+
+
+def write_revisions(path: Path, revisions: ContainerRevisions) -> None:
+    path.write_bytes(revisions_json(revisions))
+
+
+def load_revisions(path: Path) -> ContainerRevisions:
+    data = json.loads(path.read_text())
+    if not isinstance(data, dict):
+        raise ValueError(f"expected an object in {path}")
+    allowed = {"container", "vllm_commit", "aiter_commit"}
+    if set(data) - allowed:
+        raise ValueError(f"unexpected revision fields in {path}")
+    values = {key: data.get(key) for key in allowed}
+    if any(value is not None and not isinstance(value, str) for value in values.values()):
+        raise ValueError(f"expected string revision fields in {path}")
+    for key in ("vllm_commit", "aiter_commit"):
+        if values[key] is not None and _commit(values[key]) is None:
+            raise ValueError(f"invalid {key} in {path}")
+    return ContainerRevisions(**values)
 
 
 def _run(arguments: list[str], timeout: int = 10) -> subprocess.CompletedProcess[str] | None:

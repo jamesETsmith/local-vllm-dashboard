@@ -86,6 +86,19 @@ uv run local-vllm-dashboard ingest-directory \
 
 The command reports accepted, duplicate, and failed submissions. If the configured local Docker image or matching perf-eval container is available, ingestion also records exact vLLM and ROCm AITER revisions when detectable.
 
+### Package results for browser upload
+
+Run the packager on the benchmark host while its perf-eval container or configured image is still available:
+
+```bash
+uv run local-vllm-dashboard package-results \
+  --workloads-dir /path/to/workloads \
+  --results-dir /path/to/results \
+  --output ./dashboard-results.tar.gz
+```
+
+Use `--container <NAME_OR_ID>` when automatic container discovery is ambiguous. The archive contains matched workload and result files plus revision metadata extracted with the same vLLM and ROCm AITER detection used by direct ingestion. Upload the resulting archive through the browser.
+
 ## Browser upload
 
 Open `http://<VPN_IP>:8010/dashboard/upload` or select **Upload results** on the dashboard. Enter the ingestion token, then choose either:

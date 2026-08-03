@@ -1,9 +1,16 @@
+import json
+from pathlib import Path
+
+import pytest
+
 from local_vllm_dashboard.container_revisions import (
     ContainerRevisions,
     discover_container,
     discover_revisions,
     extract_image_revisions,
     extract_revisions,
+    load_revisions,
+    write_revisions,
 )
 
 
@@ -80,3 +87,24 @@ def test_extract_reads_vllm_and_aiter_commits(monkeypatch) -> None:
         vllm_commit="abcdef0",
         aiter_commit="fedcba0",
     )
+
+
+def test_revision_metadata_round_trips(tmp_path: Path) -> None:
+    path = tmp_path / "demo.revisions.json"
+    revisions = ContainerRevisions(
+        container="perf-eval-demo-123",
+        vllm_commit="abcdef0",
+        aiter_commit="fedcba0",
+    )
+
+    write_revisions(path, revisions)
+
+    assert load_revisions(path) == revisions
+
+
+def test_revision_metadata_rejects_invalid_commits(tmp_path: Path) -> None:
+    path = tmp_path / "demo.revisions.json"
+    path.write_text(json.dumps({"vllm_commit": "not-a-commit"}))
+
+    with pytest.raises(ValueError, match="invalid vllm_commit"):
+        load_revisions(path)
