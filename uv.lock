@@ -465,7 +465,7 @@ wheels = [
 
 [[package]]
 name = "local-vllm-dashboard"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
