@@ -97,7 +97,7 @@ uv run local-vllm-dashboard package-results \
   --output ./dashboard-results.tar.gz
 ```
 
-Use `--container <NAME_OR_ID>` when automatic container discovery is ambiguous. The archive contains matched workload and result files plus revision metadata extracted with the same vLLM and ROCm AITER detection used by direct ingestion. Upload the resulting archive through the browser.
+Use `--container <NAME_OR_ID>` when automatic container discovery is ambiguous. The archive contains matched workload and result files plus revision metadata extracted with the same vLLM and ROCm AITER detection used by direct ingestion. Upload the resulting archive through the browser. Dependency commits are stored as queryable run metadata and shown in the Runs & Data table and run detail view.
 
 ## Browser upload
 

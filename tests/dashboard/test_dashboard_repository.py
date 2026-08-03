@@ -4,6 +4,7 @@ from uuid import UUID
 
 from local_vllm_dashboard.adapter import build_accuracy_bundle, build_performance_bundle
 from local_vllm_dashboard.artifacts import artifact_contents
+from local_vllm_dashboard.container_revisions import ContainerRevisions
 from local_vllm_dashboard.dashboard.models import DashboardFilters
 from local_vllm_dashboard.dashboard.repository import DashboardRepository
 from local_vllm_dashboard.db import Base, BundleRepository, make_engine, make_session_factory
@@ -18,7 +19,14 @@ def dashboard_repository() -> DashboardRepository:
     session = factory()
     recipe = FIXTURES / "prefix_cache_workload.yaml"
     result = FIXTURES / "prefix_cache_partial_failure_bench.json"
-    performance = build_performance_bundle(recipe, result)
+    performance = build_performance_bundle(
+        recipe,
+        result,
+        container_revisions=ContainerRevisions(
+            vllm_commit="abcdef0",
+            aiter_commit="fedcba0",
+        ),
+    )
     BundleRepository(session).save(
         performance,
         artifact_contents(performance, (recipe, result)),
@@ -48,6 +56,8 @@ def test_repository_loads_all_dashboard_views() -> None:
     assert data.run_data[0].tensor_parallel_size == 4
     assert data.run_data[0].total_token_throughput_per_gpu == 739.15939605178
     assert data.run_data[0].mean_ttft == 0.24936232599429786
+    assert data.run_data[0].vllm_commit == "abcdef0"
+    assert data.run_data[0].dependency_revisions == (("aiter", "fedcba0"),)
     assert data.options.hardware == ("MI355X",)
     assert data.options.tasks == ("gsm8k",)
     assert data.options.prefix_cache_tokens == (40000,)
@@ -63,6 +73,7 @@ def test_repository_loads_full_run_detail() -> None:
 
     assert detail is not None
     assert detail.run.bundle_id == bundle_id
+    assert detail.run.dependency_revisions == (("aiter", "fedcba0"),)
     assert '"max_concurrency": 4' in detail.configuration_json[0]
     assert '"prefix_cache_tokens": 40000' in detail.configuration_json[0]
     assert len(detail.metrics[0]) > 1

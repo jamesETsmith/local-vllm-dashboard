@@ -25,7 +25,7 @@
           <div><dt>Runner</dt><dd>{{ detail.run.runner_kind }}</dd></div>
           <div><dt>vLLM image</dt><dd>{{ detail.run.vllm_image or 'unknown' }}</dd></div>
           <div><dt>vLLM commit</dt><dd><code>{{ detail.run.vllm_commit or 'not detected' }}</code></dd></div>
-          {% if detail.run.aiter_commit %}<div><dt>AITER commit</dt><dd><code>{{ detail.run.aiter_commit }}</code></dd></div>{% endif %}
+          {% for name, revision in detail.run.dependency_revisions %}<div><dt>{{ name|upper }} commit</dt><dd><code>{{ revision }}</code></dd></div>{% endfor %}
           {% if detail.run.container %}<div><dt>Container</dt><dd><code>{{ detail.run.container }}</code></dd></div>{% endif %}
           <div><dt>Artifacts</dt><dd>{{ detail.run.artifact_count }}</dd></div>
         </dl>
