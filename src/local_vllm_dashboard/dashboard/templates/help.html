@@ -27,9 +27,19 @@
         <a class="active" href="{{ request.scope.get('root_path', '') }}/help">Help</a>
       </nav>
 
-      <section class="panel help-panel">
-        <div class="help-document">{{ help_html|safe }}</div>
-      </section>
+      <div class="help-layout">
+        <section class="panel help-panel">
+          <div class="help-document">{{ help_html|safe }}</div>
+        </section>
+        <aside class="help-toc" aria-label="Help page contents">
+          <p>On this page</p>
+          <nav>
+            {% for level, anchor, title in help_toc %}
+              <a class="help-toc-level-{{ level }}" href="#{{ anchor }}">{{ title }}</a>
+            {% endfor %}
+          </nav>
+        </aside>
+      </div>
       <script src="{{ request.scope.get('root_path', '') }}/static/copy-code.js" defer></script>
     </main>
   </body>

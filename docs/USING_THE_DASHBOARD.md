@@ -96,8 +96,10 @@ GET {base_url}/api/v1/configuration-filters
 
 Agents that can read OpenAPI should use `{base_url}/openapi.json` as the authoritative endpoint and response contract instead of relying on examples in prose.
 
-## Discovery and source of truth
+<!--
+Discovery and source of truth
 
-This guide is the source for the Help tab and `/llms.txt`. Edit `docs/USING_THE_DASHBOARD.md` rather than copying usage instructions into templates. REST schemas and parameter constraints come from the FastAPI/Pydantic definitions and are published automatically through `/docs` and `/openapi.json`. MCP tool names, descriptions, and input schemas come from the registered MCP tools.
+This guide is the source for the Help tab and /llms.txt. Edit docs/USING_THE_DASHBOARD.md rather than copying usage instructions into templates. REST schemas and parameter constraints come from the FastAPI/Pydantic definitions and are published automatically through /docs and /openapi.json. MCP tool names, descriptions, and input schemas come from the registered MCP tools.
 
-`/llms.txt` is a convenience for agents that support that convention. It does not replace explicit MCP client configuration or the OpenAPI contract.
+/llms.txt is a convenience for agents that support that convention. It does not replace explicit MCP client configuration or the OpenAPI contract.
+-->

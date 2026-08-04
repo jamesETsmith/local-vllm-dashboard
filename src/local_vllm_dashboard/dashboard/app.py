@@ -91,10 +91,11 @@ def create_dashboard_app(
 
     @app.get("/help", response_class=HTMLResponse, name="dashboard-help")
     def help_page(request: Request) -> HTMLResponse:
+        help_html, help_toc = usage_html(str(request.base_url).removesuffix("/dashboard/"))
         return TEMPLATES.TemplateResponse(
             request,
             "help.html",
-            {"help_html": usage_html(str(request.base_url).removesuffix("/dashboard/"))},
+            {"help_html": help_html, "help_toc": help_toc},
         )
 
     @app.get("/raw-data.csv", name="raw-data-download")

@@ -80,11 +80,17 @@ def test_help_and_agent_instructions_share_usage_documentation() -> None:
     assert "Claude Code" in help_page.text
     assert "http://testserver/mcp/" in help_page.text
     assert "http://testserver/openapi.json" in help_page.text
+    assert "Discovery and source of truth" not in help_page.text
+    assert 'class="help-toc"' in help_page.text
+    assert 'href="#for-people"' in help_page.text
+    assert 'href="#for-agents"' in help_page.text
+    assert 'href="#rest-api"' in help_page.text
     assert agent_guide.status_code == 200
     assert agent_guide.headers["content-type"].startswith("text/plain")
     assert "# Using the vLLM Results Dashboard" in agent_guide.text
     assert "http://testserver/mcp/" in agent_guide.text
     assert "http://testserver/openapi.json" in agent_guide.text
+    assert "Discovery and source of truth" not in agent_guide.text
 
 
 def test_performance_dashboard_renders_normalized_results() -> None:
