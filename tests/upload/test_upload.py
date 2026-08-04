@@ -5,7 +5,13 @@ from pathlib import Path
 
 import pytest
 
-from local_vllm_dashboard.upload import UploadedFile, archive_files, stage_upload
+from local_vllm_dashboard.db import BundleRepository, make_engine, make_session_factory
+from local_vllm_dashboard.upload import (
+    UploadedFile,
+    archive_files,
+    ingest_preview,
+    stage_upload,
+)
 
 
 def make_archive(entries: dict[str, bytes]) -> bytes:
@@ -90,3 +96,71 @@ vllm_bench:
 
     assert preview.report.config_count == 1
     assert preview.report.result_count == 1
+
+
+def test_ingest_preview_rolls_back_between_failures(tmp_path: Path) -> None:
+    preview = stage_upload(
+        (
+            UploadedFile(
+                "workloads/demo.yaml",
+                b"""name: demo
+gpu: MI355X
+num_gpus: 1
+vllm: {model: example/model, image: example/image}
+vllm_bench:
+  metadata: {tp: 1, precision: fp8}
+  configs:
+    - name: first
+      backend: openai
+      dataset: random
+      input_len: 10
+      output_len: 5
+      num_prompts: 2
+      max_concurrency: 2
+    - name: second
+      backend: openai
+      dataset: random
+      input_len: 10
+      output_len: 5
+      num_prompts: 4
+      max_concurrency: 4
+""",
+            ),
+            UploadedFile(
+                "results/demo/first.json",
+                json.dumps(
+                    {
+                        "date": "20260725-120000",
+                        "num_prompts": 2,
+                        "max_concurrency": 2,
+                        "completed": 2,
+                        "failed": 0,
+                        "total_token_throughput": 3,
+                    }
+                ).encode(),
+            ),
+            UploadedFile(
+                "results/demo/second.json",
+                json.dumps(
+                    {
+                        "date": "20260725-120000",
+                        "num_prompts": 4,
+                        "max_concurrency": 4,
+                        "completed": 4,
+                        "failed": 0,
+                        "total_token_throughput": 6,
+                    }
+                ).encode(),
+            ),
+        ),
+        tmp_path,
+    )
+    engine = make_engine("sqlite+pysqlite:///:memory:")
+    factory = make_session_factory(engine)
+    with factory() as session:
+        result = ingest_preview(preview, BundleRepository(session))
+
+    assert len(result.failed) == 2
+    assert "no such table: bundles" in result.failed[0][1]
+    assert "no such table: bundles" in result.failed[1][1]
+    assert "rolled back" not in result.failed[1][1]

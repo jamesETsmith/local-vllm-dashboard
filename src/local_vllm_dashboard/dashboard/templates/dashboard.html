@@ -12,7 +12,6 @@
       <div>
         <p class="eyebrow">Local benchmark observatory</p>
         <h1>vLLM Results</h1>
-        <p class="lede">Compare standardized performance and accuracy results without losing the settings behind them.</p>
         <div class="header-links">
           <a class="upload-link" href="{{ request.scope.get('root_path', '') }}/upload">Upload results</a>
           <a class="github-link" href="https://github.com/jamesETsmith/local-vllm-dashboard">View project on GitHub <span aria-hidden="true">↗</span></a>
@@ -29,7 +28,7 @@
       <nav class="tabs" aria-label="Dashboard sections">
         <a class="{{ 'active' if tab == 'performance' else '' }}" href="?tab=performance">Performance</a>
         <a class="{{ 'active' if tab == 'accuracy' else '' }}" href="?tab=accuracy">Accuracy</a>
-        <a class="{{ 'active' if tab == 'runs' else '' }}" href="?tab=runs">Runs &amp; Data</a>
+        <a class="{{ 'active' if tab == 'runs' else '' }}" href="?tab=runs">Raw Data Table</a>
       </nav>
 
       <form class="filters" method="get">
@@ -67,42 +66,27 @@
             <select name="task"><option value="">All</option>{% for value in data.options.tasks %}<option {{ 'selected' if filters.task == value else '' }}>{{ value }}</option>{% endfor %}</select>
           </label>
         {% endif %}
-        <div class="filter-actions"><a href="/?tab={{ tab }}">Reset filters</a></div>
+        <div class="filter-actions"><a href="/?tab={{ tab }}">Reset filters</a>{% if tab == 'runs' %}<button type="submit" formaction="{{ request.scope.get('root_path', '') }}/raw-data.csv">Download selection</button>{% endif %}</div>
       </form>
 
       {% if tab == 'performance' %}
         {% if performance_chart %}
-          <section class="panel chart-panel">
-            <div class="section-heading"><div><p class="eyebrow">Scaling curve</p><h2>Throughput by concurrency</h2></div><p>Total token throughput per GPU as concurrency increases. Each trace represents an ISL, OSL, and prefix-cache combination.</p></div>
-            <div class="chart-layout">
-              <div class="chart-y-label">Total token throughput / GPU</div>
-              <div class="chart-area">
-                <svg id="performance-chart" role="img" aria-label="Total token throughput per GPU by concurrency"></svg>
-                <div class="chart-tooltip" id="performance-chart-tooltip"></div>
-                <div class="chart-x-label">Concurrency</div>
+          <section class="model-performance-section">
+            <div class="model-performance-heading">
+              <div><p class="eyebrow">Model performance</p><h2 id="performance-chart-heading">Total token throughput by model</h2><p>Compare benchmark configurations within each model. Throughput remains normalized per GPU.</p></div>
+              <div class="metric-selector" role="group" aria-label="Performance metric">
+                <button type="button" data-chart-metric="total_token_throughput_per_gpu">Total token throughput</button>
+                <button type="button" data-chart-metric="output_token_throughput_per_gpu">Output token throughput</button>
+                <button type="button" data-chart-metric="mean_ttft">TTFT</button>
+                <button type="button" data-chart-metric="mean_tpot">TPOT</button>
               </div>
-              <div class="chart-legend" id="performance-chart-legend"></div>
             </div>
+            <div class="model-chart-grid" id="performance-chart-grid"></div>
             <script type="application/json" id="performance-chart-data">{{ performance_chart_json|tojson }}</script>
             <script src="{{ request.scope.get('root_path', '') }}/static/performance-chart.js" defer></script>
           </section>
         {% endif %}
-        <section class="panel">
-          <div class="section-heading"><div><p class="eyebrow">Normalized results</p><h2>Performance</h2></div><p>Throughput is reported per GPU. Latencies are reported in seconds.</p></div>
-          {% if data.performance %}
-            <div class="table-wrap"><table>
-              <thead><tr><th>Completed</th><th>Hardware</th><th>Model / workload</th><th>Settings</th><th>Metrics</th><th>Requests</th></tr></thead>
-              <tbody>{% for row in data.performance %}<tr class="run-row" data-href="{{ request.scope.get('root_path', '') }}/runs/{{ row.bundle_id }}" title="{{ row.hardware }} · {{ row.model }} · ISL {{ row.input_tokens or '?' }} · OSL {{ row.output_tokens or '?' }} · Prefix {{ row.prefix_cache_tokens or 0 }} · Concurrency {{ row.concurrency or '?' }}">
-                <td><time>{{ row.completed_at.strftime('%Y-%m-%d %H:%M') }}</time></td>
-                <td><strong>{{ row.hardware }}</strong><small>{{ row.accelerator_count }} GPU{% if row.accelerator_count != 1 %}s{% endif %}</small></td>
-                <td><strong>{{ row.model }}</strong><small>{{ row.workload }}</small></td>
-                <td><span class="chip">{{ row.input_tokens or '?' }} in</span><span class="chip">{{ row.output_tokens or '?' }} out</span><span class="chip">c={{ row.concurrency or '?' }}</span><span class="chip parallelism-chip">TP {{ row.tensor_parallel_size or 1 }}</span><span class="chip parallelism-chip">DP {{ row.data_parallel_size or 1 }}</span><span class="chip parallelism-chip">EP {{ 'on' if row.expert_parallel else 'off' }}</span>{% if row.precision %}<span class="chip">{{ row.precision }}</span>{% endif %}</td>
-                <td><div class="metric-list">{% for metric in row.metrics %}<span><b>{{ '%.4g'|format(metric.value) }}</b> {{ metric.unit }}<small>{{ metric.name|replace('_', ' ') }}</small></span>{% endfor %}</div></td>
-                <td><strong>{{ row.completed_requests if row.completed_requests is not none else '?' }}</strong> completed<small class="{{ 'danger' if row.failed_requests else '' }}">{{ row.failed_requests or 0 }} failed</small></td>
-              </tr>{% endfor %}</tbody>
-            </table></div>
-          {% else %}<div class="empty"><h3>No performance results</h3><p>Adjust the filters or publish a performance bundle.</p></div>{% endif %}
-        </section>
+        {% if not performance_chart %}<section class="panel"><div class="empty"><h3>No performance results</h3><p>Adjust the filters or publish a performance bundle.</p></div></section>{% endif %}
       {% elif tab == 'accuracy' %}
         <section class="panel">
           <div class="section-heading"><div><p class="eyebrow">Evaluation results</p><h2>Accuracy</h2></div><p>Task configuration remains visible beside every score.</p></div>
@@ -121,7 +105,7 @@
         </section>
       {% else %}
         <section class="panel dataframe-panel">
-          <div class="section-heading"><div><p class="eyebrow">Flattened observations</p><h2>Runs &amp; Data</h2></div><p>One row per performance result, with configuration, hardware, revisions, and metrics flattened into columns.</p></div>
+          <div class="section-heading"><div><p class="eyebrow">Flattened observations</p><h2>Raw Data Table</h2></div><p>One row per performance result, with configuration, hardware, revisions, and metrics flattened into columns.</p></div>
           {% if data.run_data %}
             <div class="table-wrap dataframe-wrap"><table class="dataframe-table">
               <thead><tr><th>Completed</th><th>vLLM image</th><th>vLLM commit</th><th>Dependency commits</th><th>GPU</th><th># GPUs</th><th>Model</th><th>Precision</th><th>TP</th><th>DP</th><th>EP</th><th>ISL</th><th>OSL</th><th>Prefix</th><th>Concurrency</th><th>Completed req.</th><th>Failed req.</th><th>Total tok/s/GPU</th><th>Output tok/s/GPU</th><th>Req/s/GPU</th><th>Mean TTFT (s)</th><th>P99 TTFT (s)</th><th>Mean TPOT (s)</th><th>P99 TPOT (s)</th><th>Mean ITL (s)</th><th>P99 ITL (s)</th><th>Mean E2E (s)</th><th>P99 E2E (s)</th><th>Bundle</th></tr></thead>

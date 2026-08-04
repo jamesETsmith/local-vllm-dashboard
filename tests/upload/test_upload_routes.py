@@ -103,4 +103,5 @@ def test_archive_preview_then_confirmation(tmp_path: Path) -> None:
     assert "upload-config-list" in preview.text
     assert result.status_code == 200
     assert "Accepted 1" in result.text
-    assert "prefix-cache-performance-mi355x" in dashboard_page.text
+    assert "performance-chart-data" in dashboard_page.text
+    assert "Total token throughput by model" in dashboard_page.text

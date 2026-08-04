@@ -71,17 +71,19 @@ def test_performance_dashboard_renders_normalized_results() -> None:
 
     assert response.status_code == 200
     assert "Performance" in response.text
-    assert "Throughput by concurrency" in response.text
+    assert "Compare standardized performance and accuracy results" not in response.text
+    assert "Total token throughput by model" in response.text
     assert "performance-chart-data" in response.text
-    assert "ISL 50000" in response.text
-    assert "Prefix 40000" in response.text
+    assert 'data-chart-metric="total_token_throughput_per_gpu"' in response.text
+    assert 'data-chart-metric="output_token_throughput_per_gpu"' in response.text
+    assert 'data-chart-metric="mean_ttft"' in response.text
+    assert 'data-chart-metric="mean_tpot"' in response.text
+    assert "Throughput remains normalized per GPU" in response.text
+    assert '"input_tokens": 50000' in response.text
+    assert '"prefix_cache_tokens": 40000' in response.text
     assert "https://github.com/jamesETsmith/local-vllm-dashboard" in response.text
-    assert "prefix-cache-performance-mi355x" in response.text
-    assert "token/s/gpu" in response.text
-    assert "TP 4" in response.text
-    assert "DP 1" in response.text
-    assert "EP off" in response.text
-    assert "39 failed" in response.text
+    assert "Raw Data Table" in response.text
+    assert "Normalized results" not in response.text
 
 
 def test_accuracy_dashboard_renders_task_configuration() -> None:
@@ -99,8 +101,10 @@ def test_runs_dashboard_renders_provenance() -> None:
         response = client.get("/dashboard/?tab=runs")
 
     assert response.status_code == 200
-    assert "Runs &amp; Data" in response.text
+    assert "Raw Data Table" in response.text
     assert "Flattened observations" in response.text
+    assert "Download selection" in response.text
+    assert 'formaction="/dashboard/raw-data.csv"' in response.text
     assert "Total tok/s/GPU" in response.text
     assert "Mean TTFT (s)" in response.text
     assert "dataframe-table" in response.text
@@ -116,9 +120,26 @@ def test_runs_dashboard_renders_provenance() -> None:
     assert "run-links.js" in response.text
 
 
+def test_raw_data_download_exports_filtered_csv() -> None:
+    with dashboard_client() as client:
+        response = client.get(
+            "/dashboard/raw-data.csv?hardware=MI355X&model=example-org/example-model"
+        )
+        missing = client.get("/dashboard/raw-data.csv?hardware=H200")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/csv")
+    assert response.headers["content-disposition"] == 'attachment; filename="vllm-raw-data.csv"'
+    assert "total_token_throughput_per_gpu" in response.text
+    assert "example-org/example-model" in response.text
+    assert "aiter=fedcba0" in response.text
+    assert len(response.text.splitlines()) == 2
+    assert len(missing.text.splitlines()) == 1
+
+
 def test_run_detail_renders_full_configuration() -> None:
     with dashboard_client() as client:
-        dashboard = client.get("/dashboard/")
+        dashboard = client.get("/dashboard/?tab=runs")
         marker = 'data-href="/dashboard/runs/'
         bundle_id = dashboard.text.split(marker, 1)[1].split('"', 1)[0]
         response = client.get(f"/dashboard/runs/{bundle_id}")
