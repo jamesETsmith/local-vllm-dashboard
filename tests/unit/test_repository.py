@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from sqlalchemy import func, insert, select
+from sqlalchemy import func, insert, inspect, select, text
 from sqlalchemy.sql.schema import Table
 
 from local_vllm_dashboard.contracts import Bundle
@@ -86,6 +86,37 @@ def test_schema_initialization_backfills_dependency_commits() -> None:
         revision = session.scalar(select(DependencyRevisionRecord))
         assert revision is not None
         assert (revision.name, revision.revision) == ("aiter_commit", "fedcba0")
+
+
+def test_schema_initialization_migrates_legacy_artifact_storage() -> None:
+    engine = make_engine("sqlite+pysqlite:///:memory:")
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "CREATE TABLE raw_artifact_provenance ("
+                "id INTEGER PRIMARY KEY, bundle_id CHAR(32) NOT NULL, path TEXT NOT NULL, "
+                "role VARCHAR(64) NOT NULL, size_bytes INTEGER NOT NULL, "
+                "digest VARCHAR(71) NOT NULL)"
+            )
+        )
+        connection.execute(
+            text(
+                "INSERT INTO raw_artifact_provenance "
+                "(id, bundle_id, path, role, size_bytes, digest) "
+                "VALUES (1, :bundle_id, 'recipe.yaml', 'workload_recipe', 10, :digest)"
+            ),
+            {"bundle_id": "0" * 32, "digest": f"sha256:{'0' * 64}"},
+        )
+
+    initialize_schema(engine)
+
+    columns = {column["name"] for column in inspect(engine).get_columns("raw_artifact_provenance")}
+    assert {"media_type", "content"} <= columns
+    with engine.connect() as connection:
+        row = connection.execute(
+            text("SELECT media_type, content FROM raw_artifact_provenance WHERE id = 1")
+        ).one()
+    assert row == ("application/yaml", b"")
 
 
 def test_repository_returns_duplicate_for_same_payload() -> None:

@@ -10,13 +10,14 @@ def performance_row(
     throughput: float,
     prefix: int,
     hardware: str = "MI355X",
+    model: str = "example/model",
 ) -> PerformanceView:
     return PerformanceView(
         bundle_id=UUID(int=concurrency),
         completed_at=datetime(2026, 7, concurrency, tzinfo=UTC),
         hardware=hardware,
         accelerator_count=4,
-        model="example/model",
+        model=model,
         workload=f"attempt-{concurrency}",
         precision="mxfp4",
         tensor_parallel_size=4,
@@ -35,27 +36,36 @@ def performance_row(
                 unit="token/s/gpu",
                 aggregation="run",
             ),
+            MetricView(
+                name="output_token_throughput_per_gpu",
+                value=throughput / 2,
+                unit="token/s/gpu",
+                aggregation="run",
+            ),
+            MetricView(name="mean_ttft", value=0.1, unit="s", aggregation="mean"),
+            MetricView(name="mean_tpot", value=0.02, unit="s", aggregation="mean"),
         ),
     )
 
 
-def test_chart_groups_by_token_and_prefix_configuration() -> None:
+def test_chart_groups_all_metrics_by_model() -> None:
     chart = performance_chart(
         (
             performance_row(8, 100, 40000),
             performance_row(2, 50, 40000),
             performance_row(4, 75, 0),
             performance_row(4, 120, 40000, "B300"),
+            performance_row(2, 90, 0, model="other/model"),
         )
     )
 
-    assert [series.label for series in chart] == [
-        "B300 · ISL 50000 · OSL 1000 · Prefix 40000",
-        "MI355X · ISL 50000 · OSL 1000 · Prefix 0",
-        "MI355X · ISL 50000 · OSL 1000 · Prefix 40000",
-    ]
-    assert chart[0].hardware == "B300"
-    assert chart[2].hardware == "MI355X"
-    assert [point.concurrency for point in chart[2].points] == [2, 8]
-    assert chart[2].points[0].bundle_id == str(UUID(int=2))
-    assert chart[2].points[0].model == "example/model"
+    assert [model_chart.model for model_chart in chart] == ["example/model", "other/model"]
+    assert [point.concurrency for point in chart[0].points] == [4, 2, 4, 8]
+    assert chart[0].points[1].bundle_id == str(UUID(int=2))
+    assert chart[0].points[1].hardware == "MI355X"
+    assert chart[0].points[1].metrics == {
+        "total_token_throughput_per_gpu": 50,
+        "output_token_throughput_per_gpu": 25,
+        "mean_ttft": 0.1,
+        "mean_tpot": 0.02,
+    }

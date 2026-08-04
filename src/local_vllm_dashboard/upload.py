@@ -144,5 +144,6 @@ def ingest_preview(preview: UploadPreview, repository: BundleRepository) -> Uplo
                     else:
                         duplicate += 1
                 except Exception as error:
+                    repository.session.rollback()
                     failed.append((result_path, str(error)))
     return UploadResult(accepted=accepted, duplicate=duplicate, failed=tuple(failed))
