@@ -1,6 +1,7 @@
 import hashlib
 import secrets
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated
 
@@ -30,6 +31,12 @@ from local_vllm_dashboard.db import (
     make_engine,
     make_session_factory,
 )
+from local_vllm_dashboard.query import (
+    QueryService,
+    create_mcp_app,
+    create_mcp_server,
+    create_query_router,
+)
 
 
 class Settings(BaseSettings):
@@ -53,7 +60,18 @@ def create_app(
 ) -> FastAPI:
     selected_settings = settings or Settings()
     factory = session_factory or make_session_factory(make_engine(selected_settings.database_url))
-    app = FastAPI(title="Local vLLM Dashboard Ingestion API")
+    query_service = QueryService(factory)
+    mcp_server = create_mcp_server(query_service)
+    mcp_app = create_mcp_app(mcp_server)
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+        async with mcp_server.session_manager.run():
+            yield
+
+    app = FastAPI(title="Local vLLM Dashboard API", lifespan=lifespan)
+    app.include_router(create_query_router(query_service))
+    app.mount("/mcp", mcp_app, name="mcp")
     app.mount(
         "/dashboard",
         create_dashboard_app(

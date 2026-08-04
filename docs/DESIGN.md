@@ -43,11 +43,12 @@ perf-eval artifacts
                                                        -> dashboard server
                                                        -> dashboard UI
 
-LATER MCP PHASE
-MCP clients -> MCP server                               -> operational database
+QUERY INTERFACES
+REST clients -> query API -> shared query service       -> operational database
+MCP clients  -> MCP endpoint -> shared query service    -> operational database
 ```
 
-The source adapter and publisher execute where `perf-eval` runs and need only local artifact access plus outbound HTTPS access to the ingestion API. The ingestion API, operational database, dashboard server, and dashboard UI execute on the database/service side. During the simple dashboard phase, the dashboard server reads PostgreSQL directly and renders browser-facing views without a separate query API. A later MCP phase introduces a dedicated read interface for machine consumers. In a local development deployment, these roles may share one host while retaining the same interfaces and dependency direction.
+The source adapter and publisher execute where `perf-eval` runs and need only local artifact access plus outbound HTTPS access to the ingestion API. The ingestion API, operational database, dashboard server, query API, MCP endpoint, and dashboard UI execute on the database/service side. The dashboard server reads PostgreSQL through the result-store interface. REST and MCP expose stable machine-readable views through a shared query service rather than exposing database tables. In the initial deployment, the dashboard, REST API, and Streamable HTTP MCP endpoint run in one FastAPI process and container behind one Uvicorn command. In a local development deployment, these roles may share one host while retaining the same interfaces and dependency direction.
 
 A downstream layer must never parse a `perf-eval` directory or depend on a `perf-eval` Python or shell module. A source adapter must never connect directly to the production database. The UI must never parse artifacts or calculate authoritative benchmark metrics.
 
@@ -73,7 +74,9 @@ Only server-side services connect to the database. The initial deployment is res
 | `ingestion-api` | Contract validation, attachment digest/size validation, idempotency, and durable acceptance | contracts, database interface | `perf-eval` parser, dashboard logic, UI |
 | `result-store` | Transactional records, normalized canonical observations, and immutable selected artifact bytes | database engine, contracts | source parsing, UI |
 | `dashboard` | Server-rendered human views, filtering, and visualization | result store, database interface | `perf-eval` formats, ingestion write paths |
-| `mcp-server` | Later machine-readable discovery and query tools | result store, database interface | `perf-eval` formats, ingestion write paths, dashboard presentation |
+| `query-service` | Stable read models, filtering, pagination, and query semantics shared by machine interfaces | result store, database interface | `perf-eval` formats, ingestion write paths, dashboard presentation |
+| `query-api` | Versioned REST resources and OpenAPI documentation | query service | database tables, ingestion write paths, dashboard presentation |
+| `mcp-server` | Streamable HTTP tools for machine-readable discovery and queries | query service | database tables, ingestion write paths, dashboard presentation |
 
 Implementations may live in one repository and deploy together initially, but package and interface boundaries remain enforced. In-process calls are allowed only behind the same contract-oriented interfaces as future network calls.
 
@@ -261,7 +264,7 @@ The dashboard server derives display-only values from canonical facts while hand
 
 ## 11. Dashboard
 
-Phase 2 provides a simple server-rendered dashboard that reads PostgreSQL directly through the result-store interface. It does not add a general-purpose query API, a separate frontend application, or a projection worker.
+Phase 2 provides a simple server-rendered dashboard that reads PostgreSQL directly through the result-store interface. It does not require a separate frontend application or projection worker.
 
 Initial views:
 
@@ -315,13 +318,13 @@ Build the `perf-eval` adapter, local publisher, single-request ingestion API, an
 
 Add a server-rendered dashboard that reads PostgreSQL through the result-store interface. Provide filtered performance, accuracy, and run-data views without a separate query API, frontend application, or projection worker.
 
-### Phase 3: Additional input coverage
+### Phase 3: Query interfaces
 
-Add richer BFCL handling, additional `perf-eval` artifact formats, custom dimensions, and optional data export.
+Add a read-only, versioned REST API for configuration discovery, filtering, pagination, and metric retrieval. Define stable API read models guided by canonical domain concepts and existing dashboard projections rather than exposing database tables. Add a Streamable HTTP MCP endpoint as a thin adapter over the same query service. Run the dashboard, REST API, and MCP endpoint in one FastAPI process and container behind one Uvicorn command.
 
-### Later phase: MCP query interface
+### Shelved: Additional input coverage
 
-Add an MCP server for machine-readable run discovery, filtering, and metric retrieval. Define stable MCP tools and read models at that time rather than introducing a general-purpose dashboard query API prematurely.
+Richer BFCL handling, additional `perf-eval` artifact formats, and custom dimensions remain deferred until concrete user needs and representative fixtures are available.
 
 ## 16. Resolved implementation decisions
 

@@ -49,6 +49,17 @@ http://<VPN_IP>:8010/dashboard/
 
 The dashboard is readable on the VPN. Writes require the token. Keep the `.env` file private and reuse the same token across service restarts.
 
+The same Uvicorn process also serves machine-readable query interfaces:
+
+```text
+http://<VPN_IP>:8010/api/v1/configurations
+http://<VPN_IP>:8010/api/v1/configuration-filters
+http://<VPN_IP>:8010/docs
+http://<VPN_IP>:8010/mcp/
+```
+
+The REST API supports exact-match filters for hardware, model, precision, token lengths, prefix-cache tokens, and concurrency, with bounded `limit` and `offset` pagination. The MCP endpoint uses Streamable HTTP and exposes the same configuration search and filter discovery through shared query models.
+
 ## Publishing host playbook
 
 ### 1. Install
