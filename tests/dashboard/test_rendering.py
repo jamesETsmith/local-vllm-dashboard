@@ -65,6 +65,34 @@ def test_root_redirects_to_dashboard() -> None:
     assert favicon.status_code == 204
 
 
+def test_help_and_agent_instructions_share_usage_documentation() -> None:
+    with dashboard_client() as client:
+        dashboard = client.get("/dashboard/")
+        help_page = client.get("/dashboard/help")
+        agent_guide = client.get("/llms.txt")
+
+    assert 'href="/dashboard/help"' in dashboard.text
+    assert help_page.status_code == 200
+    assert "For people" in help_page.text
+    assert "For agents" in help_page.text
+    assert "Crush" in help_page.text
+    assert "Cursor" in help_page.text
+    assert "Claude Code" in help_page.text
+    assert "http://testserver/mcp/" in help_page.text
+    assert "http://testserver/openapi.json" in help_page.text
+    assert "Discovery and source of truth" not in help_page.text
+    assert 'class="help-toc"' in help_page.text
+    assert 'href="#for-people"' in help_page.text
+    assert 'href="#for-agents"' in help_page.text
+    assert 'href="#rest-api"' in help_page.text
+    assert agent_guide.status_code == 200
+    assert agent_guide.headers["content-type"].startswith("text/plain")
+    assert "# Using the vLLM Results Dashboard" in agent_guide.text
+    assert "http://testserver/mcp/" in agent_guide.text
+    assert "http://testserver/openapi.json" in agent_guide.text
+    assert "Discovery and source of truth" not in agent_guide.text
+
+
 def test_performance_dashboard_renders_normalized_results() -> None:
     with dashboard_client() as client:
         response = client.get("/dashboard/")

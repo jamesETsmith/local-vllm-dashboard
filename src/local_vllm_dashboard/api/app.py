@@ -1,6 +1,7 @@
 import hashlib
 import secrets
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated
 
@@ -30,6 +31,13 @@ from local_vllm_dashboard.db import (
     make_engine,
     make_session_factory,
 )
+from local_vllm_dashboard.query import (
+    QueryService,
+    create_mcp_app,
+    create_mcp_server,
+    create_query_router,
+)
+from local_vllm_dashboard.usage_docs import usage_text
 
 
 class Settings(BaseSettings):
@@ -40,6 +48,12 @@ class Settings(BaseSettings):
     max_request_bytes: int = 4_194_304
     max_artifact_bytes: int = 1_048_576
     upload_staging_dir: Path = Path(".upload-staging")
+    mcp_allowed_hosts: tuple[str, ...] = ("127.0.0.1:*", "localhost:*", "[::1]:*")
+    mcp_allowed_origins: tuple[str, ...] = (
+        "http://127.0.0.1:*",
+        "http://localhost:*",
+        "http://[::1]:*",
+    )
 
 
 class IngestResponse(BaseModel):
@@ -53,7 +67,22 @@ def create_app(
 ) -> FastAPI:
     selected_settings = settings or Settings()
     factory = session_factory or make_session_factory(make_engine(selected_settings.database_url))
-    app = FastAPI(title="Local vLLM Dashboard Ingestion API")
+    query_service = QueryService(factory)
+    mcp_server = create_mcp_server(
+        query_service,
+        allowed_hosts=selected_settings.mcp_allowed_hosts,
+        allowed_origins=selected_settings.mcp_allowed_origins,
+    )
+    mcp_app = create_mcp_app(mcp_server)
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+        async with mcp_server.session_manager.run():
+            yield
+
+    app = FastAPI(title="Local vLLM Dashboard API", lifespan=lifespan)
+    app.include_router(create_query_router(query_service))
+    app.mount("/mcp", mcp_app, name="mcp")
     app.mount(
         "/dashboard",
         create_dashboard_app(
@@ -71,6 +100,10 @@ def create_app(
     @app.get("/favicon.ico", include_in_schema=False, status_code=status.HTTP_204_NO_CONTENT)
     def favicon() -> Response:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    @app.get("/llms.txt", include_in_schema=False, response_class=Response)
+    def agent_instructions(request: Request) -> Response:
+        return Response(usage_text(str(request.base_url).rstrip("/")), media_type="text/plain")
 
     def get_session() -> Iterator[Session]:
         with factory() as session:

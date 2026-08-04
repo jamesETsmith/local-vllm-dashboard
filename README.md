@@ -14,15 +14,19 @@ uv sync --locked --all-groups
 
 ### 2. Create persistent configuration
 
-Generate the ingestion token once. Reuse it across restarts and share it only with approved publishing hosts.
+Generate the ingestion token once. Reuse it across restarts and share it only with approved publishing hosts. Set the public host or IP used by clients so the MCP endpoint can reject DNS-rebinding attempts without being limited to localhost.
 
 ```bash
 umask 077
 cat > .env <<EOF
 DASHBOARD_DATABASE_URL=sqlite+pysqlite:///./dashboard.db
 DASHBOARD_INGEST_TOKEN=$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')
+DASHBOARD_MCP_ALLOWED_HOSTS='["<SERVICE_HOST>:*"]'
+DASHBOARD_MCP_ALLOWED_ORIGINS='["https://<SERVICE_HOST>:*"]'
 EOF
 ```
+
+For direct HTTP on a trusted private network, use `http://<SERVICE_HOST>:*` in `DASHBOARD_MCP_ALLOWED_ORIGINS`. For an HTTPS reverse proxy, use the externally visible HTTPS origin. Add every hostname or IP clients use; keep the defaults for localhost development.
 
 Load the configuration:
 
@@ -37,17 +41,30 @@ set +a
 ```bash
 uv run local-vllm-dashboard init-db
 uv run uvicorn local_vllm_dashboard.api.server:app \
-  --host <VPN_IP> \
+  --host <BIND_ADDRESS> \
   --port 8010
 ```
 
-Find `<VPN_IP>` with `ip -brief address`. Open:
+Use `127.0.0.1` for local-only access or a private interface when clients connect directly. For broader deployments, put the service behind an HTTPS reverse proxy. Open:
 
 ```text
-http://<VPN_IP>:8010/dashboard/
+<BASE_URL>/dashboard/
 ```
 
-The dashboard is readable on the VPN. Writes require the token. Keep the `.env` file private and reuse the same token across service restarts.
+The dashboard and query interfaces are readable without application-layer authentication. Writes require the token. Restrict read access with the deployment network, reverse proxy, or an external authentication layer. Keep the `.env` file private and reuse the same token across service restarts.
+
+The same Uvicorn process also serves machine-readable query interfaces:
+
+```text
+<BASE_URL>/api/v1/configurations
+<BASE_URL>/api/v1/configuration-filters
+<BASE_URL>/docs
+<BASE_URL>/mcp/
+```
+
+The REST API supports exact-match filters for hardware, model, precision, token lengths, prefix-cache tokens, and concurrency, with bounded `limit` and `offset` pagination. The MCP endpoint uses Streamable HTTP and exposes the same configuration search and filter discovery through shared query models.
+
+The dashboard Help tab and `/llms.txt` are rendered from `docs/USING_THE_DASHBOARD.md`. Update that guide instead of duplicating user or agent instructions in templates. REST contracts are generated from code at `/docs` and `/openapi.json`; MCP tool instructions are generated from tool registrations.
 
 ## Publishing host playbook
 
@@ -81,7 +98,7 @@ Review the report for matched, repeated, missing, unmatched, and invalid files.
 uv run local-vllm-dashboard ingest-directory \
   --workloads-dir /path/to/workloads \
   --results-dir /path/to/results \
-  --endpoint http://<VPN_IP>:8010
+  --endpoint <BASE_URL>
 ```
 
 The command reports accepted, duplicate, and failed submissions. If the configured local Docker image or matching perf-eval container is available, ingestion also records exact vLLM and ROCm AITER revisions when detectable.
@@ -97,11 +114,11 @@ uv run local-vllm-dashboard package-results \
   --output ./dashboard-results.tar.gz
 ```
 
-Use `--container <NAME_OR_ID>` when automatic container discovery is ambiguous. The archive contains matched workload and result files plus revision metadata extracted with the same vLLM and ROCm AITER detection used by direct ingestion. Upload the resulting archive through the browser. Dependency commits are stored as queryable run metadata and shown in the Runs & Data table and run detail view.
+Use `--container <NAME_OR_ID>` when automatic container discovery is ambiguous. The archive contains matched workload and result files plus revision metadata extracted with the same vLLM and ROCm AITER detection used by direct ingestion. Upload the resulting archive through the browser. Dependency commits are stored as queryable run metadata and shown in the Raw Data Table and run detail view.
 
 ## Browser upload
 
-Open `http://<VPN_IP>:8010/dashboard/upload` or select **Upload results** on the dashboard. Enter the ingestion token, then choose either:
+Open `<BASE_URL>/dashboard/upload` or select **Upload results** on the dashboard. Enter the ingestion token, then choose either:
 
 - a local folder containing workload YAML and result JSON files; or
 - a `.tar`, `.tar.gz`, or `.tgz` archive preserving their directory structure.

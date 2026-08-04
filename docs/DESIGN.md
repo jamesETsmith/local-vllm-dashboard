@@ -43,11 +43,12 @@ perf-eval artifacts
                                                        -> dashboard server
                                                        -> dashboard UI
 
-LATER MCP PHASE
-MCP clients -> MCP server                               -> operational database
+QUERY INTERFACES
+REST clients -> query API -> shared query service       -> operational database
+MCP clients  -> MCP endpoint -> shared query service    -> operational database
 ```
 
-The source adapter and publisher execute where `perf-eval` runs and need only local artifact access plus outbound HTTPS access to the ingestion API. The ingestion API, operational database, dashboard server, and dashboard UI execute on the database/service side. During the simple dashboard phase, the dashboard server reads PostgreSQL directly and renders browser-facing views without a separate query API. A later MCP phase introduces a dedicated read interface for machine consumers. In a local development deployment, these roles may share one host while retaining the same interfaces and dependency direction.
+The source adapter and publisher execute where `perf-eval` runs and need only local artifact access plus outbound HTTPS access to the ingestion API. The ingestion API, operational database, dashboard server, query API, MCP endpoint, and dashboard UI execute on the database/service side. The dashboard server reads PostgreSQL through the result-store interface. REST and MCP expose stable machine-readable views through a shared query service rather than exposing database tables. In the initial deployment, the dashboard, REST API, and Streamable HTTP MCP endpoint run in one FastAPI process and container behind one Uvicorn command. In a local development deployment, these roles may share one host while retaining the same interfaces and dependency direction.
 
 A downstream layer must never parse a `perf-eval` directory or depend on a `perf-eval` Python or shell module. A source adapter must never connect directly to the production database. The UI must never parse artifacts or calculate authoritative benchmark metrics.
 
@@ -61,7 +62,7 @@ The service stores submitted canonical bundles, standardized observations, and s
 
 ### 4.4 No shared database access from clients
 
-Only server-side services connect to the database. The initial deployment is restricted to one trusted network and uses one shared bearer token for ingestion. The dashboard remains readable without application-layer authentication. The ingestion API centralizes authentication, validation, schema management, idempotency, and backup policy while keeping database credentials off developer laptops and CI workers.
+Only server-side services connect to the database. The initial deployment assumes network-level access control and uses one shared bearer token for ingestion. The dashboard, REST query API, and MCP endpoint remain readable without application-layer authentication. Deployments may use a private network, an HTTPS reverse proxy, or an external authentication layer to restrict readers. The ingestion API centralizes write authentication, validation, schema management, idempotency, and backup policy while keeping database credentials off developer laptops and CI workers.
 
 ## 5. Modules and ownership
 
@@ -73,7 +74,9 @@ Only server-side services connect to the database. The initial deployment is res
 | `ingestion-api` | Contract validation, attachment digest/size validation, idempotency, and durable acceptance | contracts, database interface | `perf-eval` parser, dashboard logic, UI |
 | `result-store` | Transactional records, normalized canonical observations, and immutable selected artifact bytes | database engine, contracts | source parsing, UI |
 | `dashboard` | Server-rendered human views, filtering, and visualization | result store, database interface | `perf-eval` formats, ingestion write paths |
-| `mcp-server` | Later machine-readable discovery and query tools | result store, database interface | `perf-eval` formats, ingestion write paths, dashboard presentation |
+| `query-service` | Stable read models, filtering, pagination, and query semantics shared by machine interfaces | result store, database interface | `perf-eval` formats, ingestion write paths, dashboard presentation |
+| `query-api` | Versioned REST resources and OpenAPI documentation | query service | database tables, ingestion write paths, dashboard presentation |
+| `mcp-server` | Streamable HTTP tools for machine-readable discovery and queries | query service | database tables, ingestion write paths, dashboard presentation |
 
 Implementations may live in one repository and deploy together initially, but package and interface boundaries remain enforced. In-process calls are allowed only behind the same contract-oriented interfaces as future network calls.
 
@@ -261,27 +264,27 @@ The dashboard server derives display-only values from canonical facts while hand
 
 ## 11. Dashboard
 
-Phase 2 provides a simple server-rendered dashboard that reads PostgreSQL directly through the result-store interface. It does not add a general-purpose query API, a separate frontend application, or a projection worker.
+Phase 2 provides a simple server-rendered dashboard that reads PostgreSQL directly through the result-store interface. It does not require a separate frontend application or projection worker.
 
 Initial views:
 
 1. **Performance:** per-GPU throughput and latency tables with hardware, model, token-length, and concurrency filters.
 2. **Accuracy:** task scores with model, task, and few-shot settings.
-3. **Runs and data:** run provenance, canonical observation details, and selected original workload/result files needed to understand and reproduce displayed results.
+3. **Raw Data Table:** run provenance, canonical observation details, and selected original workload/result files needed to understand and reproduce displayed results.
 
-The ATOM benchmark dashboard is the interaction reference: a small number of tabs, centralized filter state, native tables, and charts only where they make comparisons clearer. The implementation remains server-rendered and progressively enhanced so Phase 2 does not require a separate browser application architecture.
+The ATOM benchmark dashboard is the interaction reference: a small number of tabs, centralized filter state, native tables, and charts only where they make comparisons clearer. The implementation remains server-rendered and progressively enhanced so Phase 2 does not require a separate browser application architecture. A Help tab renders the canonical usage guide for people and agents. The same guide is exposed as `/llms.txt`; REST endpoint contracts remain generated from FastAPI/Pydantic through `/docs` and `/openapi.json`, while MCP tool instructions remain generated from registered tool definitions.
 
 ## 12. Deployment topology
 
 ### 12.1 Development and single-user deployment
 
-A Docker Compose environment runs PostgreSQL, the ingestion API, and the dashboard server. The publisher runs on the local benchmark host and targets the local or remote ingestion API.
+A Docker Compose environment runs PostgreSQL and one FastAPI process containing the ingestion API, dashboard, REST query API, and Streamable HTTP MCP endpoint. The publisher runs on the local benchmark host and targets the local or remote ingestion API.
 
 ### 12.2 Shared deployment
 
-PostgreSQL supports the ingestion API and dashboard server. Benchmark workers and CI agents require only network access to the ingestion endpoint.
+PostgreSQL supports the FastAPI service and remains a private network service. Benchmark workers and CI agents require network access to the ingestion endpoint. Human and machine readers access the dashboard, REST API, or MCP endpoint through a private network or HTTPS reverse proxy. MCP DNS-rebinding protection uses an explicit allowlist of externally visible hostnames or IP addresses and origins.
 
-The API is the only write boundary. PostgreSQL remains a private network service.
+The ingestion API is the only write boundary. The dashboard, REST API, and MCP endpoint are read-only and rely on deployment-level access control until application-layer reader authentication is introduced.
 
 ## 13. Observability and operations
 
@@ -298,6 +301,7 @@ Operational runbooks cover database backup/restore, failed-ingestion investigati
 5. Dashboard repository tests: filters correctly expose workloads, versions, and benchmark settings.
 6. Dashboard rendering tests: stored performance and accuracy observations appear in the expected views.
 7. End-to-end test: adapter fixture to publisher to local server to rendered dashboard.
+8. Query-interface tests: REST filtering and pagination, generated OpenAPI paths, MCP tools and transport security, and shared Help/agent documentation rendering.
 
 No dashboard test should require a live `perf-eval` installation. No adapter test should require a database or dashboard.
 
@@ -315,19 +319,19 @@ Build the `perf-eval` adapter, local publisher, single-request ingestion API, an
 
 Add a server-rendered dashboard that reads PostgreSQL through the result-store interface. Provide filtered performance, accuracy, and run-data views without a separate query API, frontend application, or projection worker.
 
-### Phase 3: Additional input coverage
+### Phase 3: Query interfaces
 
-Add richer BFCL handling, additional `perf-eval` artifact formats, custom dimensions, and optional data export.
+Add a read-only, versioned REST API for configuration discovery, filtering, pagination, and metric retrieval. Define stable API read models guided by canonical domain concepts and existing dashboard projections rather than exposing database tables. Add a Streamable HTTP MCP endpoint as a thin adapter over the same query service. Run the dashboard, REST API, and MCP endpoint in one FastAPI process and container behind one Uvicorn command.
 
-### Later phase: MCP query interface
+### Shelved: Additional input coverage
 
-Add an MCP server for machine-readable run discovery, filtering, and metric retrieval. Define stable MCP tools and read models at that time rather than introducing a general-purpose dashboard query API prematurely.
+Richer BFCL handling, additional `perf-eval` artifact formats, and custom dimensions remain deferred until concrete user needs and representative fixtures are available.
 
 ## 16. Resolved implementation decisions
 
 1. **Initial scope:** Begin with Phase 0 and Phase 1 only, supporting performance and lm-eval result artifacts first.
 2. **Infrastructure:** Use PostgreSQL and Docker Compose for local development.
-3. **Transport:** Send one bearer-token-authenticated multipart `POST /v1/bundles` request over the trusted network containing transformed data and selected unchanged source attachments.
+3. **Transport:** Send one bearer-token-authenticated multipart `POST /v1/bundles` request over the deployment network containing transformed data and selected unchanged source attachments.
 4. **Boundary:** Install the adapter/publisher on benchmark clients; run the full service stack only on the server side; clients have no database access; servers do not parse attached source files.
 5. **Storage policy:** Submitted canonical bundles, observations, and selected original workload/result files are immutable; dashboard projections are rebuildable; large or arbitrary artifacts remain on the benchmark host.
 6. **Schema policy:** Start with a simple canonical v1 schema, then iteratively extend it as concrete inputs and dashboard needs emerge. Schema changes remain explicit, versioned, and covered by fixtures; a new major version is reserved for incompatible changes.
