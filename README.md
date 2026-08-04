@@ -64,6 +64,8 @@ The same Uvicorn process also serves machine-readable query interfaces:
 
 The REST API supports exact-match filters for hardware, model, precision, token lengths, prefix-cache tokens, and concurrency, with bounded `limit` and `offset` pagination. The MCP endpoint uses Streamable HTTP and exposes the same configuration search and filter discovery through shared query models.
 
+The dashboard Help tab and `/llms.txt` are rendered from `docs/USING_THE_DASHBOARD.md`. Update that guide instead of duplicating user or agent instructions in templates. REST contracts are generated from code at `/docs` and `/openapi.json`; MCP tool instructions are generated from tool registrations.
+
 ## Publishing host playbook
 
 ### 1. Install
@@ -112,7 +114,7 @@ uv run local-vllm-dashboard package-results \
   --output ./dashboard-results.tar.gz
 ```
 
-Use `--container <NAME_OR_ID>` when automatic container discovery is ambiguous. The archive contains matched workload and result files plus revision metadata extracted with the same vLLM and ROCm AITER detection used by direct ingestion. Upload the resulting archive through the browser. Dependency commits are stored as queryable run metadata and shown in the Runs & Data table and run detail view.
+Use `--container <NAME_OR_ID>` when automatic container discovery is ambiguous. The archive contains matched workload and result files plus revision metadata extracted with the same vLLM and ROCm AITER detection used by direct ingestion. Upload the resulting archive through the browser. Dependency commits are stored as queryable run metadata and shown in the Raw Data Table and run detail view.
 
 ## Browser upload
 

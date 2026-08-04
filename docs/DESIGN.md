@@ -270,9 +270,9 @@ Initial views:
 
 1. **Performance:** per-GPU throughput and latency tables with hardware, model, token-length, and concurrency filters.
 2. **Accuracy:** task scores with model, task, and few-shot settings.
-3. **Runs and data:** run provenance, canonical observation details, and selected original workload/result files needed to understand and reproduce displayed results.
+3. **Raw Data Table:** run provenance, canonical observation details, and selected original workload/result files needed to understand and reproduce displayed results.
 
-The ATOM benchmark dashboard is the interaction reference: a small number of tabs, centralized filter state, native tables, and charts only where they make comparisons clearer. The implementation remains server-rendered and progressively enhanced so Phase 2 does not require a separate browser application architecture.
+The ATOM benchmark dashboard is the interaction reference: a small number of tabs, centralized filter state, native tables, and charts only where they make comparisons clearer. The implementation remains server-rendered and progressively enhanced so Phase 2 does not require a separate browser application architecture. A Help tab renders the canonical usage guide for people and agents. The same guide is exposed as `/llms.txt`; REST endpoint contracts remain generated from FastAPI/Pydantic through `/docs` and `/openapi.json`, while MCP tool instructions remain generated from registered tool definitions.
 
 ## 12. Deployment topology
 
@@ -301,6 +301,7 @@ Operational runbooks cover database backup/restore, failed-ingestion investigati
 5. Dashboard repository tests: filters correctly expose workloads, versions, and benchmark settings.
 6. Dashboard rendering tests: stored performance and accuracy observations appear in the expected views.
 7. End-to-end test: adapter fixture to publisher to local server to rendered dashboard.
+8. Query-interface tests: REST filtering and pagination, generated OpenAPI paths, MCP tools and transport security, and shared Help/agent documentation rendering.
 
 No dashboard test should require a live `perf-eval` installation. No adapter test should require a database or dashboard.
 

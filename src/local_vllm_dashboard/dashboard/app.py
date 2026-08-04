@@ -15,6 +15,7 @@ from local_vllm_dashboard.dashboard.chart import chart_json_data, performance_ch
 from local_vllm_dashboard.dashboard.models import DashboardFilters
 from local_vllm_dashboard.dashboard.repository import DashboardRepository
 from local_vllm_dashboard.dashboard.upload_routes import register_upload_routes
+from local_vllm_dashboard.usage_docs import usage_html
 
 ROOT = Path(__file__).parent
 TEMPLATES = Jinja2Templates(directory=ROOT / "templates")
@@ -86,6 +87,14 @@ def create_dashboard_app(
                 "performance_chart": chart,
                 "performance_chart_json": chart_json_data(chart),
             },
+        )
+
+    @app.get("/help", response_class=HTMLResponse, name="dashboard-help")
+    def help_page(request: Request) -> HTMLResponse:
+        return TEMPLATES.TemplateResponse(
+            request,
+            "help.html",
+            {"help_html": usage_html(str(request.base_url).removesuffix("/dashboard/"))},
         )
 
     @app.get("/raw-data.csv", name="raw-data-download")

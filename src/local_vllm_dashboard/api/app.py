@@ -37,6 +37,7 @@ from local_vllm_dashboard.query import (
     create_mcp_server,
     create_query_router,
 )
+from local_vllm_dashboard.usage_docs import usage_text
 
 
 class Settings(BaseSettings):
@@ -99,6 +100,10 @@ def create_app(
     @app.get("/favicon.ico", include_in_schema=False, status_code=status.HTTP_204_NO_CONTENT)
     def favicon() -> Response:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    @app.get("/llms.txt", include_in_schema=False, response_class=Response)
+    def agent_instructions(request: Request) -> Response:
+        return Response(usage_text(str(request.base_url).rstrip("/")), media_type="text/plain")
 
     def get_session() -> Iterator[Session]:
         with factory() as session:
