@@ -62,7 +62,7 @@ The service stores submitted canonical bundles, standardized observations, and s
 
 ### 4.4 No shared database access from clients
 
-Only server-side services connect to the database. The initial deployment is restricted to one trusted network and uses one shared bearer token for ingestion. The dashboard remains readable without application-layer authentication. The ingestion API centralizes authentication, validation, schema management, idempotency, and backup policy while keeping database credentials off developer laptops and CI workers.
+Only server-side services connect to the database. The initial deployment assumes network-level access control and uses one shared bearer token for ingestion. The dashboard, REST query API, and MCP endpoint remain readable without application-layer authentication. Deployments may use a private network, an HTTPS reverse proxy, or an external authentication layer to restrict readers. The ingestion API centralizes write authentication, validation, schema management, idempotency, and backup policy while keeping database credentials off developer laptops and CI workers.
 
 ## 5. Modules and ownership
 
@@ -278,13 +278,13 @@ The ATOM benchmark dashboard is the interaction reference: a small number of tab
 
 ### 12.1 Development and single-user deployment
 
-A Docker Compose environment runs PostgreSQL, the ingestion API, and the dashboard server. The publisher runs on the local benchmark host and targets the local or remote ingestion API.
+A Docker Compose environment runs PostgreSQL and one FastAPI process containing the ingestion API, dashboard, REST query API, and Streamable HTTP MCP endpoint. The publisher runs on the local benchmark host and targets the local or remote ingestion API.
 
 ### 12.2 Shared deployment
 
-PostgreSQL supports the ingestion API and dashboard server. Benchmark workers and CI agents require only network access to the ingestion endpoint.
+PostgreSQL supports the FastAPI service and remains a private network service. Benchmark workers and CI agents require network access to the ingestion endpoint. Human and machine readers access the dashboard, REST API, or MCP endpoint through a private network or HTTPS reverse proxy. MCP DNS-rebinding protection uses an explicit allowlist of externally visible hostnames or IP addresses and origins.
 
-The API is the only write boundary. PostgreSQL remains a private network service.
+The ingestion API is the only write boundary. The dashboard, REST API, and MCP endpoint are read-only and rely on deployment-level access control until application-layer reader authentication is introduced.
 
 ## 13. Observability and operations
 
@@ -330,7 +330,7 @@ Richer BFCL handling, additional `perf-eval` artifact formats, and custom dimens
 
 1. **Initial scope:** Begin with Phase 0 and Phase 1 only, supporting performance and lm-eval result artifacts first.
 2. **Infrastructure:** Use PostgreSQL and Docker Compose for local development.
-3. **Transport:** Send one bearer-token-authenticated multipart `POST /v1/bundles` request over the trusted network containing transformed data and selected unchanged source attachments.
+3. **Transport:** Send one bearer-token-authenticated multipart `POST /v1/bundles` request over the deployment network containing transformed data and selected unchanged source attachments.
 4. **Boundary:** Install the adapter/publisher on benchmark clients; run the full service stack only on the server side; clients have no database access; servers do not parse attached source files.
 5. **Storage policy:** Submitted canonical bundles, observations, and selected original workload/result files are immutable; dashboard projections are rebuildable; large or arbitrary artifacts remain on the benchmark host.
 6. **Schema policy:** Start with a simple canonical v1 schema, then iteratively extend it as concrete inputs and dashboard needs emerge. Schema changes remain explicit, versioned, and covered by fixtures; a new major version is reserved for incompatible changes.

@@ -47,6 +47,12 @@ class Settings(BaseSettings):
     max_request_bytes: int = 4_194_304
     max_artifact_bytes: int = 1_048_576
     upload_staging_dir: Path = Path(".upload-staging")
+    mcp_allowed_hosts: tuple[str, ...] = ("127.0.0.1:*", "localhost:*", "[::1]:*")
+    mcp_allowed_origins: tuple[str, ...] = (
+        "http://127.0.0.1:*",
+        "http://localhost:*",
+        "http://[::1]:*",
+    )
 
 
 class IngestResponse(BaseModel):
@@ -61,7 +67,11 @@ def create_app(
     selected_settings = settings or Settings()
     factory = session_factory or make_session_factory(make_engine(selected_settings.database_url))
     query_service = QueryService(factory)
-    mcp_server = create_mcp_server(query_service)
+    mcp_server = create_mcp_server(
+        query_service,
+        allowed_hosts=selected_settings.mcp_allowed_hosts,
+        allowed_origins=selected_settings.mcp_allowed_origins,
+    )
     mcp_app = create_mcp_app(mcp_server)
 
     @asynccontextmanager

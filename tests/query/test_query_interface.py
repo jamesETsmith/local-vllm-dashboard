@@ -87,7 +87,11 @@ def test_mcp_exposes_shared_configuration_queries() -> None:
     client = query_client()
     app = client.app
     query_service = QueryService(app.state.query_session_factory)
-    server = create_mcp_server(query_service)
+    server = create_mcp_server(
+        query_service,
+        allowed_hosts=("testserver",),
+        allowed_origins=("http://testserver",),
+    )
 
     async def query_mcp() -> None:
         tools = await server.list_tools()
@@ -108,3 +112,43 @@ def test_mcp_exposes_shared_configuration_queries() -> None:
         assert filters["hardware"] == ["MI355X"]
 
     anyio.run(query_mcp)
+
+
+def test_mcp_transport_accepts_configured_hosts_and_rejects_others() -> None:
+    engine = create_engine(
+        "sqlite+pysqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    factory = make_session_factory(engine)
+    app = create_app(
+        Settings(
+            database_url="sqlite+pysqlite:///:memory:",
+            ingest_token="test-token",
+            mcp_allowed_hosts=("benchmarks.example.com:*",),
+            mcp_allowed_origins=("https://benchmarks.example.com:*",),
+        ),
+        factory,
+    )
+
+    with TestClient(app) as client:
+        allowed = client.get(
+            "/mcp/",
+            headers={"Host": "benchmarks.example.com:8010"},
+        )
+        rejected_host = client.get(
+            "/mcp/",
+            headers={"Host": "untrusted.example.com:8010"},
+        )
+        rejected_origin = client.get(
+            "/mcp/",
+            headers={
+                "Host": "benchmarks.example.com:8010",
+                "Origin": "https://untrusted.example.com:8010",
+            },
+        )
+
+    assert allowed.status_code == 406
+    assert rejected_host.status_code == 421
+    assert rejected_origin.status_code == 403

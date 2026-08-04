@@ -1,17 +1,27 @@
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from starlette.applications import Starlette
 
 from local_vllm_dashboard.query.models import ConfigurationFilters
 from local_vllm_dashboard.query.service import QueryService
 
 
-def create_mcp_server(service: QueryService) -> FastMCP:
+def create_mcp_server(
+    service: QueryService,
+    *,
+    allowed_hosts: tuple[str, ...],
+    allowed_origins: tuple[str, ...],
+) -> FastMCP:
     server = FastMCP(
         "Local vLLM Dashboard",
         instructions="Discover and query standardized local vLLM benchmark configurations.",
         streamable_http_path="/",
         stateless_http=True,
         json_response=True,
+        transport_security=TransportSecuritySettings(
+            allowed_hosts=list(allowed_hosts),
+            allowed_origins=list(allowed_origins),
+        ),
     )
 
     @server.tool()
