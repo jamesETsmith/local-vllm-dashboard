@@ -89,6 +89,22 @@ def create_dashboard_app(
             },
         )
 
+    @app.get("/comparison", response_class=HTMLResponse, name="dashboard-comparison")
+    def comparison_page(
+        request: Request,
+        session: Annotated[Session, Depends(get_session)],
+    ) -> HTMLResponse:
+        data = DashboardRepository(session).load(DashboardFilters())
+        chart = performance_chart(data.performance)
+        return TEMPLATES.TemplateResponse(
+            request,
+            "comparison.html",
+            {
+                "comparison_chart": chart,
+                "comparison_chart_json": chart_json_data(chart),
+            },
+        )
+
     @app.get("/help", response_class=HTMLResponse, name="dashboard-help")
     def help_page(request: Request) -> HTMLResponse:
         help_html, help_toc = usage_html(str(request.base_url).removesuffix("/dashboard/"))

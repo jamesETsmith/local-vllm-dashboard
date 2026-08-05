@@ -22,6 +22,7 @@ class ChartPoint:
     precision: str | None
     completed_requests: int | None
     failed_requests: int | None
+    configuration: dict[str, object]
     metrics: dict[str, float]
 
 
@@ -53,6 +54,7 @@ def performance_chart(rows: tuple[PerformanceView, ...]) -> tuple[ModelChart, ..
                 precision=row.precision,
                 completed_requests=row.completed_requests,
                 failed_requests=row.failed_requests,
+                configuration=row.configuration,
                 metrics=metrics,
             )
         )

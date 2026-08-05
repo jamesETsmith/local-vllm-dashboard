@@ -53,6 +53,7 @@ class PerformanceView:
     concurrency: int | None
     completed_requests: int | None
     failed_requests: int | None
+    configuration: dict[str, object]
     metrics: tuple[MetricView, ...]
 
 

@@ -29,6 +29,7 @@
         <a class="{{ 'active' if tab == 'performance' else '' }}" href="?tab=performance">Performance</a>
         <a class="{{ 'active' if tab == 'accuracy' else '' }}" href="?tab=accuracy">Accuracy</a>
         <a class="{{ 'active' if tab == 'runs' else '' }}" href="?tab=runs">Raw Data Table</a>
+        <a href="{{ request.scope.get('root_path', '') }}/comparison">Custom Comparison</a>
         <a href="{{ request.scope.get('root_path', '') }}/help">Help</a>
       </nav>
 

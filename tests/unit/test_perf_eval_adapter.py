@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import cast
 from uuid import UUID
 
 from local_vllm_dashboard.adapter import build_performance_bundle
@@ -24,6 +25,18 @@ def test_build_performance_bundle_from_real_shape() -> None:
     assert bundle.observations[0].configuration["completed"] == 1
     assert bundle.observations[0].configuration["failed"] == 39
     assert bundle.observations[0].configuration["prefix_cache_tokens"] == 40000
+    assert bundle.observations[0].configuration["args"] == {
+        "num_warmups": 32,
+        "percentile_metrics": "ttft,tpot,itl,e2el",
+        "prefix_repetition_num_prefixes": 1,
+        "prefix_repetition_prefix_len": 40000,
+        "prefix_repetition_suffix_len": 10000,
+        "prefix_repetition_output_len": 1000,
+        "disable_tqdm": True,
+    }
+    assert "--enable-prefix-caching" in cast(
+        str, bundle.observations[0].configuration["serve_args"]
+    )
     metrics = {metric.name: metric for metric in bundle.observations[0].metrics}
     assert metrics[MetricName.MEAN_TTFT].value == 0.24936232599429786
     total = metrics[MetricName.TOTAL_TOKEN_THROUGHPUT_PER_GPU]

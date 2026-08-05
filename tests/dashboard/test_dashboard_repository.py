@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any, cast
 from uuid import UUID
 
 from local_vllm_dashboard.adapter import build_accuracy_bundle, build_performance_bundle
@@ -26,6 +27,19 @@ def dashboard_repository() -> DashboardRepository:
             vllm_commit="abcdef0",
             aiter_commit="fedcba0",
         ),
+    )
+    historical_observation = performance.observations[0].model_copy(
+        update={
+            "configuration": {
+                key: value
+                for key, value in performance.observations[0].configuration.items()
+                if key not in {"args", "recipe_config", "serve_args"}
+            }
+        }
+    )
+    performance = performance.model_copy(update={"observations": (historical_observation,)})
+    performance = performance.model_copy(
+        update={"idempotency_key": performance.calculated_idempotency_key()}
     )
     BundleRepository(session).save(
         performance,
@@ -62,6 +76,10 @@ def test_repository_loads_all_dashboard_views() -> None:
     assert data.options.tasks == ("gsm8k",)
     assert data.options.prefix_cache_tokens == (40000,)
     assert data.performance[0].failed_requests == 39
+    configuration = data.performance[0].configuration
+    assert cast(dict[str, Any], configuration["args"])["num_warmups"] == 32
+    assert "--enable-prefix-caching" in cast(str, configuration["serve_args"])
+    assert configuration["expert_parallel"] is False
     assert data.accuracy[0].fewshot == 5
 
 

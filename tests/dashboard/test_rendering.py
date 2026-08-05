@@ -124,6 +124,44 @@ def test_accuracy_dashboard_renders_task_configuration() -> None:
     assert "5-shot" in response.text
 
 
+def test_custom_comparison_renders_selectable_results_and_chart_controls() -> None:
+    with dashboard_client() as client:
+        dashboard = client.get("/dashboard/")
+        response = client.get("/dashboard/comparison")
+
+    assert response.status_code == 200
+    assert 'href="/dashboard/comparison"' in dashboard.text
+    assert "Custom Comparison" in response.text
+    assert 'class="comparison-result"' in response.text
+    assert 'data-comparison-result="0:0"' in response.text
+    assert "example-org/example-model" in response.text
+    assert "MI355X" in response.text
+    assert "ISL 50000" in response.text
+    assert (
+        'data-search-base="example-org/example-model mi355x quantized tp 4 dp 1 ep off '
+        'expert-parallel off"' in response.text
+    )
+    assert "data-search-config=" in response.text
+    assert "num_warmups" in response.text
+    assert "enable-prefix-caching" in response.text
+    assert 'id="comparison-filter-count"' in response.text
+    assert 'id="comparison-filter-empty"' in response.text
+    assert 'id="comparison-result-preview"' in response.text
+    assert 'aria-describedby="comparison-result-preview"' in response.text
+    assert 'tabindex="0"' in response.text
+    assert 'data-comparison-metric="total_token_throughput_per_gpu"' in response.text
+    assert 'id="comparison-chart-data"' in response.text
+    assert "custom-comparison.js" in response.text
+
+
+def test_custom_comparison_has_clear_empty_state() -> None:
+    with dashboard_client(populated=False) as client:
+        response = client.get("/dashboard/comparison")
+
+    assert response.status_code == 200
+    assert "No performance results to compare" in response.text
+
+
 def test_runs_dashboard_renders_provenance() -> None:
     with dashboard_client() as client:
         response = client.get("/dashboard/?tab=runs")
