@@ -132,6 +132,9 @@ def test_custom_comparison_renders_selectable_results_and_chart_controls() -> No
     assert response.status_code == 200
     assert 'href="/dashboard/comparison"' in dashboard.text
     assert "Custom Comparison" in response.text
+    assert "actual vLLM command-line arguments" in response.text
+    assert "--enable-expert-parallel" in response.text
+    assert "--gpu-memory-utilization 0.95" in response.text
     assert 'class="comparison-result"' in response.text
     assert 'data-comparison-result="0:0"' in response.text
     assert "example-org/example-model" in response.text
