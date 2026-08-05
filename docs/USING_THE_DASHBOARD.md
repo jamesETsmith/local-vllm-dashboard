@@ -7,7 +7,8 @@ The dashboard provides human-readable comparisons and machine-readable access to
 - **Performance** compares configurations within each model. Select total token throughput, output token throughput, TTFT, or TPOT. Throughput is normalized per GPU.
 - **Accuracy** shows task scores with the task configuration beside each result.
 - **Raw Data Table** exposes flattened performance observations and downloads the current hardware/model selection as CSV.
-- Select a chart point or table row to inspect full configuration, provenance, dependency revisions, and stored source artifacts.
+- **Custom Comparison** lets you select performance results across models and configurations, then plot one throughput or latency metric on a shared graph. Its config filter searches model, hardware, precision, TP/DP/EP settings, canonical configuration fields, benchmark `args`, and vLLM serve arguments. For historical results, the dashboard recovers those arguments from the stored workload YAML without changing the accepted canonical observation.
+- Select a chart point, comparison bar, or table row to inspect full configuration, provenance, dependency revisions, and stored source artifacts.
 - **Upload results** accepts a packaged archive or matching workload YAML and result JSON files. Uploading requires the ingestion token.
 
 ## For agents

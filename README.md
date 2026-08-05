@@ -64,7 +64,7 @@ The same Uvicorn process also serves machine-readable query interfaces:
 
 The REST API supports exact-match filters for hardware, model, precision, token lengths, prefix-cache tokens, and concurrency, with bounded `limit` and `offset` pagination. The MCP endpoint uses Streamable HTTP and exposes the same configuration search and filter discovery through shared query models.
 
-The dashboard Help tab and `/llms.txt` are rendered from `docs/USING_THE_DASHBOARD.md`. Update that guide instead of duplicating user or agent instructions in templates. REST contracts are generated from code at `/docs` and `/openapi.json`; MCP tool instructions are generated from tool registrations.
+The Custom Comparison page lets users select performance results across models and configurations and plot their throughput or latency on one graph. The dashboard Help tab and `/llms.txt` are rendered from `docs/USING_THE_DASHBOARD.md`. Update that guide instead of duplicating user or agent instructions in templates. REST contracts are generated from code at `/docs` and `/openapi.json`; MCP tool instructions are generated from tool registrations.
 
 ## Publishing host playbook
 

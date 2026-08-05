@@ -35,3 +35,21 @@ jobs:
 
       - name: Run pre-push checks
         run: uv run pre-commit run --all-files --hook-stage pre-push
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --locked --all-groups
+
+      - name: Run formatting, linting, type checks, and tests
+        run: uv run poe check

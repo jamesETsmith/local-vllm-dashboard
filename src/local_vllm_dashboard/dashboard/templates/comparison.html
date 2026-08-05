@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Custom Comparison · vLLM Results Dashboard</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
+    <link rel="stylesheet" href="{{ request.scope.get('root_path', '') }}/static/dashboard.css">
+  </head>
+  <body>
+    <header class="shell masthead help-masthead">
+      <div>
+        <p class="eyebrow">Local benchmark observatory</p>
+        <h1>vLLM Results</h1>
+        <div class="header-links">
+          <a class="upload-link" href="{{ request.scope.get('root_path', '') }}/upload">Upload results</a>
+          <a class="github-link" href="https://github.com/jamesETsmith/local-vllm-dashboard">View project on GitHub <span aria-hidden="true">↗</span></a>
+        </div>
+      </div>
+    </header>
+
+    <main class="shell">
+      <nav class="tabs" aria-label="Dashboard sections">
+        <a href="{{ request.scope.get('root_path', '') }}/?tab=performance">Performance</a>
+        <a href="{{ request.scope.get('root_path', '') }}/?tab=accuracy">Accuracy</a>
+        <a href="{{ request.scope.get('root_path', '') }}/?tab=runs">Raw Data Table</a>
+        <a class="active" href="{{ request.scope.get('root_path', '') }}/comparison">Custom Comparison</a>
+        <a href="{{ request.scope.get('root_path', '') }}/help">Help</a>
+      </nav>
+
+      <section class="comparison-heading">
+        <div>
+          <p class="eyebrow">Build your own view</p>
+          <h2>Custom Comparison</h2>
+          <p>Select any performance results to plot together, even when their models, hardware, token lengths, or precision differ.</p>
+        </div>
+        <div class="metric-selector" role="group" aria-label="Comparison metric">
+          <button type="button" data-comparison-metric="total_token_throughput_per_gpu">Total token throughput</button>
+          <button type="button" data-comparison-metric="output_token_throughput_per_gpu">Output token throughput</button>
+          <button type="button" data-comparison-metric="mean_ttft">TTFT</button>
+          <button type="button" data-comparison-metric="mean_tpot">TPOT</button>
+        </div>
+      </section>
+
+      {% if comparison_chart %}
+        <div class="comparison-layout">
+          <aside class="panel comparison-picker">
+            <div class="comparison-picker-heading">
+              <div><h3>Results</h3><p><strong id="comparison-selection-count">0</strong> selected</p></div>
+              <div><button type="button" class="comparison-text-button" id="comparison-select-all">Select all</button><button type="button" class="comparison-text-button" id="comparison-clear">Clear</button></div>
+            </div>
+            <label class="comparison-search">Filter results
+              <input type="search" id="comparison-search" placeholder="Model, hardware, precision, tokens…" autocomplete="off" aria-describedby="comparison-search-help">
+              <span class="comparison-search-help" id="comparison-search-help" role="tooltip">Filter configs using model or hardware details, benchmark settings, or actual vLLM command-line arguments such as <code>--enable-expert-parallel</code> and <code>--gpu-memory-utilization 0.95</code>. Every search term must match.</span>
+              <small><span id="comparison-filter-count">0</span> matching configs</small>
+            </label>
+            <div class="comparison-results" id="comparison-results">
+              {% for chart in comparison_chart %}
+                {% set chart_index = loop.index0 %}
+                {% for point in chart.points %}
+                  <label class="comparison-result" data-comparison-result="{{ chart_index }}:{{ loop.index0 }}" data-search-base="{{ chart.model|lower }} {{ point.hardware|lower }} {{ point.precision|lower if point.precision else '' }} tp {{ point.configuration.tensor_parallel_size or 1 }} dp {{ point.configuration.data_parallel_size or 1 }} ep {{ 'on' if point.configuration.expert_parallel else 'off' }} expert-parallel {{ 'on' if point.configuration.expert_parallel else 'off' }}" data-search-config="{{ point.configuration|tojson|forceescape }}" tabindex="0" aria-describedby="comparison-result-preview">
+                    <input type="checkbox" value="{{ chart_index }}:{{ loop.index0 }}">
+                    <span><strong>{{ chart.model }}</strong><small>{{ point.hardware }}{% if point.precision %} · {{ point.precision }}{% endif %} · ISL {{ point.input_tokens or '?' }} · OSL {{ point.output_tokens or '?' }} · prefix {{ point.prefix_cache_tokens or 0 }} · concurrency {{ point.concurrency }}</small></span>
+                  </label>
+                {% endfor %}
+              {% endfor %}
+              <p class="comparison-filter-empty" id="comparison-filter-empty" hidden>No configs match every search term.</p>
+            </div>
+            <div class="comparison-result-preview" id="comparison-result-preview" role="tooltip" hidden>
+              <div><strong id="comparison-preview-title"></strong><button type="button" id="comparison-preview-close" aria-label="Close configuration preview">×</button></div>
+              <small id="comparison-preview-summary"></small>
+              <pre><code id="comparison-preview-config"></code></pre>
+            </div>
+          </aside>
+
+          <section class="panel comparison-chart-card">
+            <div class="comparison-chart-title">
+              <div><p class="eyebrow">Selected results</p><h3 id="comparison-chart-heading">Total token throughput</h3></div>
+              <span id="comparison-chart-unit">token/s/GPU</span>
+            </div>
+            <div class="comparison-chart-area" id="comparison-chart-area"></div>
+            <div class="comparison-chart-legend" id="comparison-chart-legend"></div>
+          </section>
+        </div>
+        <script type="application/json" id="comparison-chart-data">{{ comparison_chart_json|tojson }}</script>
+        <script src="{{ request.scope.get('root_path', '') }}/static/custom-comparison.js" defer></script>
+      {% else %}
+        <section class="panel"><div class="empty"><h3>No performance results to compare</h3><p>Publish a performance bundle, then return here to build a comparison.</p></div></section>
+      {% endif %}
+    </main>
+  </body>
+</html>

@@ -145,6 +145,46 @@ def reproduction_command(artifacts: list[ArtifactRecord]) -> str | None:
     return f"./lib/run.sh {recipe}"
 
 
+def recipe_configuration(
+    bundle: BundleRecord,
+    observation: ObservationRecord,
+) -> dict[str, object]:
+    artifact = next(
+        (artifact for artifact in bundle.artifacts if artifact.role == "workload_recipe"),
+        None,
+    )
+    if artifact is None:
+        return {}
+    try:
+        recipe = yaml.safe_load(artifact.content.decode("utf-8"))
+    except (UnicodeDecodeError, yaml.YAMLError):
+        return {}
+    if not isinstance(recipe, dict):
+        return {}
+    vllm = mapping(recipe.get("vllm"))
+    benchmark = mapping(recipe.get("vllm_bench"))
+    configs = benchmark.get("configs")
+    if not isinstance(configs, list):
+        return {}
+    observation_name = optional_string(observation.configuration.get("name"))
+    candidates = [config for config in configs if isinstance(config, dict)]
+    matches = [config for config in candidates if config.get("name") == observation_name]
+    if not matches:
+        matches = [
+            config
+            for config in candidates
+            if config.get("max_concurrency") == observation.configuration.get("max_concurrency")
+            and config.get("num_prompts") == observation.configuration.get("num_prompts")
+        ]
+    if len(matches) != 1:
+        return {}
+    return {
+        "args": mapping(matches[0].get("args")),
+        "recipe_config": matches[0],
+        "serve_args": str(vllm.get("serve_args", "")),
+    }
+
+
 class DashboardRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
@@ -296,6 +336,13 @@ class DashboardRepository:
             concurrency=optional_int(configuration.get("max_concurrency")),
             completed_requests=optional_int(configuration.get("completed")),
             failed_requests=optional_int(configuration.get("failed")),
+            configuration={
+                **recipe_configuration(bundle, observation),
+                **configuration,
+                "tensor_parallel_size": optional_int(environment.get("tensor_parallel_size")),
+                "data_parallel_size": optional_int(environment.get("data_parallel_size")),
+                "expert_parallel": environment_extensions.get("expert_parallel") is True,
+            },
             metrics=metrics_view(observation),
         )
 
