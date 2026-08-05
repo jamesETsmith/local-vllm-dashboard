@@ -33,7 +33,6 @@
           <p class="eyebrow">Build your own view</p>
           <h2>Custom Comparison</h2>
           <p>Select any performance results to plot together, even when their models, hardware, token lengths, or precision differ.</p>
-          <p class="comparison-search-note">Filter configs using model or hardware details, benchmark settings, or actual vLLM command-line arguments such as <code>--enable-expert-parallel</code> and <code>--gpu-memory-utilization 0.95</code>.</p>
         </div>
         <div class="metric-selector" role="group" aria-label="Comparison metric">
           <button type="button" data-comparison-metric="total_token_throughput_per_gpu">Total token throughput</button>
@@ -51,7 +50,8 @@
               <div><button type="button" class="comparison-text-button" id="comparison-select-all">Select all</button><button type="button" class="comparison-text-button" id="comparison-clear">Clear</button></div>
             </div>
             <label class="comparison-search">Filter results
-              <input type="search" id="comparison-search" placeholder="Model, hardware, precision, tokens…" autocomplete="off">
+              <input type="search" id="comparison-search" placeholder="Model, hardware, precision, tokens…" autocomplete="off" aria-describedby="comparison-search-help">
+              <span class="comparison-search-help" id="comparison-search-help" role="tooltip">Filter configs using model or hardware details, benchmark settings, or actual vLLM command-line arguments such as <code>--enable-expert-parallel</code> and <code>--gpu-memory-utilization 0.95</code>. Every search term must match.</span>
               <small><span id="comparison-filter-count">0</span> matching configs</small>
             </label>
             <div class="comparison-results" id="comparison-results">

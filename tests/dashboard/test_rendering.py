@@ -135,6 +135,9 @@ def test_custom_comparison_renders_selectable_results_and_chart_controls() -> No
     assert "actual vLLM command-line arguments" in response.text
     assert "--enable-expert-parallel" in response.text
     assert "--gpu-memory-utilization 0.95" in response.text
+    assert 'id="comparison-search-help"' in response.text
+    assert 'aria-describedby="comparison-search-help"' in response.text
+    assert 'role="tooltip"' in response.text
     assert 'class="comparison-result"' in response.text
     assert 'data-comparison-result="0:0"' in response.text
     assert "example-org/example-model" in response.text

@@ -87,9 +87,12 @@ button:hover { background: var(--accent-dark); }
 .comparison-picker-heading > div:last-child { display: flex; gap: 5px; }
 .comparison-text-button { padding: 6px 7px; color: var(--accent-dark); background: transparent; box-shadow: none; font-size: .76rem; }
 .comparison-text-button:hover { color: var(--ink); background: var(--accent-soft); }
-.comparison-search { display: block; padding: 0 20px 14px; color: var(--muted); font-size: .78rem; font-weight: 700; text-transform: uppercase; }
+.comparison-search { display: block; position: relative; padding: 0 20px 14px; color: var(--muted); font-size: .78rem; font-weight: 700; text-transform: uppercase; }
 .comparison-search input { width: 100%; margin-top: 7px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; outline: none; color: var(--ink); background: var(--surface-soft); font: inherit; text-transform: none; }
 .comparison-search input:focus { border-color: rgba(117, 89, 242, .6); box-shadow: 0 0 0 3px var(--accent-soft); }
+.comparison-search-help { position: absolute; z-index: 120; display: none; isolation: isolate; left: 20px; right: 20px; top: calc(100% - 8px); padding: 13px 15px; border: 2px solid #d4cde2; border-radius: 12px; color: var(--muted); opacity: 1; background-color: #ffffff; box-shadow: 0 18px 45px rgba(40, 31, 73, .28); font-size: .78rem; font-weight: 550; letter-spacing: 0; line-height: 1.55; text-transform: none; }
+.comparison-search-help code { max-width: none; padding: 2px 4px; font-size: .72rem; }
+.comparison-search:hover .comparison-search-help, .comparison-search:focus-within .comparison-search-help { display: block; }
 .comparison-search small { display: block; margin-top: 7px; color: var(--muted); font-size: .72rem; font-weight: 600; letter-spacing: 0; text-transform: none; }
 .comparison-results { max-height: calc(100vh - 220px); overflow-y: auto; border-top: 1px solid var(--line); }
 .comparison-result { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 11px; padding: 14px 20px; border-bottom: 1px solid var(--line); cursor: pointer; }
