@@ -144,13 +144,15 @@ button:hover { background: var(--accent-dark); }
 .model-chart-title p { margin-bottom: 4px; color: var(--muted); font-size: .82rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .model-chart-title h3 { max-width: 760px; margin-bottom: 0; font-size: 1rem; overflow-wrap: anywhere; }
 .model-chart-unit { color: var(--muted); font-size: .8rem; font-weight: 700; white-space: nowrap; }
+.chart-zoom-controls { display: flex; flex: 0 0 auto; gap: 5px; }
+.chart-zoom-controls button { min-width: 32px; padding: 6px 9px; border: 1px solid var(--line); color: var(--muted); background: var(--surface); box-shadow: none; font-size: .78rem; }
+.chart-zoom-controls button:hover:not(:disabled) { color: var(--ink); background: var(--surface-soft); }
+.chart-zoom-controls button:disabled { opacity: .4; cursor: not-allowed; }
 .model-chart-area { min-height: 320px; position: relative; padding: 0 10px 8px; }
 .model-chart-area svg { display: block; width: 100%; height: 320px; }
+.model-chart-area svg.chart-pannable { cursor: grab; }
+.model-chart-area svg.chart-panning { cursor: grabbing; }
 .model-chart-empty { margin: 0; padding: 70px 22px; color: var(--muted); text-align: center; }
-.model-chart-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 0 22px 18px; }
-.model-chart-legend div { display: grid; grid-template-columns: 10px minmax(0, 1fr); align-items: center; gap: 7px; color: var(--muted); font-size: .84rem; }
-.model-chart-legend span { width: 10px; height: 3px; border-radius: 999px; }
-.model-chart-legend b { font-weight: 600; }
 .chart-tooltip { position: absolute; z-index: 5; display: grid; gap: 4px; width: 280px; padding: 13px 15px; border: 1px solid var(--line); border-radius: 13px; opacity: 0; pointer-events: none; color: var(--muted); background: rgba(255, 255, 255, .97); box-shadow: var(--shadow); font-size: .84rem; transform: translateY(5px); transition: opacity .12s ease, transform .12s ease; }
 .chart-tooltip.visible { opacity: 1; transform: translateY(0); }
 .chart-tooltip b { color: var(--ink); font-size: .82rem; }
