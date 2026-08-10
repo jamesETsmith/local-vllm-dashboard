@@ -112,6 +112,15 @@ def test_performance_dashboard_renders_normalized_results() -> None:
     assert "https://github.com/jamesETsmith/local-vllm-dashboard" in response.text
     assert "Raw Data Table" in response.text
     assert "Normalized results" not in response.text
+    chart_script = client.get("/dashboard/static/performance-chart.js")
+    assert chart_script.status_code == 200
+    assert "ignoredTraceFields" in chart_script.text
+    assert "data-chart-zoom-in" in chart_script.text
+    assert 'addEventListener("wheel"' in chart_script.text
+    assert 'addEventListener("mousedown"' in chart_script.text
+    assert "panDomain" in chart_script.text
+    assert "model-chart-legend" not in chart_script.text
+    assert "tickValues(xMin, xMax" in chart_script.text
 
 
 def test_accuracy_dashboard_renders_task_configuration() -> None:
