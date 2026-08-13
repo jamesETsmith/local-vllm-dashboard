@@ -119,7 +119,11 @@ def test_performance_dashboard_renders_normalized_results() -> None:
     assert 'addEventListener("wheel"' in chart_script.text
     assert 'addEventListener("mousedown"' in chart_script.text
     assert "panDomain" in chart_script.text
-    assert "model-chart-legend" not in chart_script.text
+    assert "model-chart-legend" in chart_script.text
+    assert "traceSymbols" in chart_script.text
+    assert "traceDate" in chart_script.text
+    assert "bundle_id: point.bundle_id" not in chart_script.text
+    assert "point.bundle_id" in chart_script.text
     assert "tickValues(xMin, xMax" in chart_script.text
 
 
@@ -230,8 +234,9 @@ def test_run_detail_renders_full_configuration() -> None:
     assert "AITER commit" in response.text
     assert "fedcba0" in response.text
     assert "Perf Data" in response.text
+    assert "YAML Config" in response.text
     assert "Reproduce Results" in response.text
-    assert "local-vllm-dashboard Info" in response.text
+    assert "Extracted Data JSON" in response.text
     assert "On this page" in response.text
     assert 'href="#perf-data"' in response.text
     assert 'href="#reproduce-results"' in response.text
@@ -248,6 +253,15 @@ def test_run_detail_renders_full_configuration() -> None:
     assert "Copy to clipboard" in response.text
     assert "highlighted-code" in response.text
     assert "copy-code.js" in response.text
+    ordered_sections = (
+        'id="summary"',
+        'id="perf-data"',
+        'id="yaml-config"',
+        'id="reproduce-results"',
+        'id="extracted-data"',
+    )
+    positions = [response.text.index(section) for section in ordered_sections]
+    assert positions == sorted(positions)
 
 
 def test_dashboard_preserves_filters_in_rendered_form() -> None:

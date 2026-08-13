@@ -13,6 +13,7 @@
     mean_tpot: { label: "TPOT", unit: "s", autoRange: true },
   };
   const fallbackColors = ["#7559f2", "#3f8cff", "#9a63d8", "#00a6a6", "#d14da5"];
+  const traceSymbols = ["circle", "square", "diamond", "triangle", "triangle-down", "hexagon", "pentagon", "star"];
   const hardwareColors = {
     H100: "#1b7f3a",
     H200: "#2e9d50",
@@ -49,6 +50,33 @@
     precision: point.precision,
     configuration: normalizedConfiguration(point.configuration),
   });
+  const traceDate = (point) => point.completed_at.slice(0, 10);
+  const polygonPoints = (sides, x, y, radius, rotation = -Math.PI / 2) => Array.from(
+    { length: sides },
+    (_, index) => {
+      const angle = rotation + (index * Math.PI * 2) / sides;
+      return `${x + Math.cos(angle) * radius},${y + Math.sin(angle) * radius}`;
+    },
+  ).join(" ");
+  const starPoints = (x, y, radius) => Array.from(
+    { length: 10 },
+    (_, index) => {
+      const angle = -Math.PI / 2 + (index * Math.PI) / 5;
+      const pointRadius = index % 2 ? radius * 0.45 : radius;
+      return `${x + Math.cos(angle) * pointRadius},${y + Math.sin(angle) * pointRadius}`;
+    },
+  ).join(" ");
+  const traceSymbol = (name, x, y, color, radius = 6) => {
+    const attributes = { fill: color, class: "chart-point-symbol" };
+    if (name === "circle") return element("circle", { cx: x, cy: y, r: radius, ...attributes });
+    if (name === "square") return element("rect", { x: x - radius, y: y - radius, width: radius * 2, height: radius * 2, rx: 1, ...attributes });
+    if (name === "diamond") return element("polygon", { points: polygonPoints(4, x, y, radius * 1.15, 0), ...attributes });
+    if (name === "triangle-down") return element("polygon", { points: polygonPoints(3, x, y, radius * 1.2, Math.PI / 2), ...attributes });
+    if (name === "hexagon") return element("polygon", { points: polygonPoints(6, x, y, radius * 1.1, 0), ...attributes });
+    if (name === "pentagon") return element("polygon", { points: polygonPoints(5, x, y, radius * 1.15), ...attributes });
+    if (name === "star") return element("polygon", { points: starPoints(x, y, radius * 1.3), ...attributes });
+    return element("polygon", { points: polygonPoints(3, x, y, radius * 1.2), ...attributes });
+  };
   const niceStep = (range, targetCount, integer = false) => {
     const rough = Math.max(range / targetCount, Number.EPSILON);
     const magnitude = 10 ** Math.floor(Math.log10(rough));
@@ -97,7 +125,9 @@
     const zoomIn = card.querySelector("[data-chart-zoom-in]");
     const zoomOut = card.querySelector("[data-chart-zoom-out]");
     const zoomReset = card.querySelector("[data-chart-zoom-reset]");
+    const legend = card.querySelector(".model-chart-legend");
     area.replaceChildren();
+    legend.replaceChildren();
     if (!points.length) {
       empty.hidden = false;
       return;
@@ -108,6 +138,20 @@
       const key = traceKey(point);
       if (!traces.has(key)) traces.set(key, []);
       traces.get(key).push(point);
+    });
+    const traceEntries = [...traces.entries()];
+    traceEntries.forEach(([, tracePoints], index) => {
+      const point = tracePoints[0];
+      const color = colorFor(point.hardware);
+      const link = document.createElement("a");
+      link.href = `runs/${point.bundle_id}`;
+      link.title = `${point.hardware} trace from ${traceDate(point)}`;
+      const icon = element("svg", { viewBox: "0 0 18 18", "aria-hidden": "true" });
+      icon.appendChild(traceSymbol(traceSymbols[index % traceSymbols.length], 9, 9, color, 5));
+      const date = document.createElement("span");
+      date.textContent = traceDate(point);
+      link.append(icon, date);
+      legend.appendChild(link);
     });
     const width = 760;
     const height = 330;
@@ -178,9 +222,10 @@
       });
 
       const plot = element("g", { "clip-path": `url(#${clipId})` });
-      [...traces.entries()].forEach(([, tracePoints]) => {
+      traceEntries.forEach(([, tracePoints], traceIndex) => {
         const sorted = [...tracePoints].sort((left, right) => left.concurrency - right.concurrency);
         const color = colorFor(sorted[0].hardware);
+        const symbol = traceSymbols[traceIndex % traceSymbols.length];
         if (sorted.length > 1) {
           plot.appendChild(element("polyline", {
             points: sorted.map((point) => `${xScale(point.concurrency)},${yScale(point.metrics[metricName])}`).join(" "),
@@ -191,7 +236,9 @@
         }
         sorted.forEach((point) => {
           const value = point.metrics[metricName];
-          const dot = element("circle", { cx: xScale(point.concurrency), cy: yScale(value), r: 6, fill: color, class: "chart-dot", tabindex: 0, role: "link" });
+          const dot = element("g", { class: "chart-point-link", tabindex: 0, role: "link" });
+          dot.appendChild(traceSymbol(symbol, xScale(point.concurrency), yScale(value), color));
+          dot.appendChild(element("circle", { cx: xScale(point.concurrency), cy: yScale(value), r: 10, class: "chart-point-hit" }));
           const show = (event) => {
             tooltip.innerHTML = `<b>${chartData.model}</b><span>${point.hardware}${point.precision ? ` · ${point.precision}` : ""}</span><span>ISL ${point.input_tokens ?? "?"} · OSL ${point.output_tokens ?? "?"}</span><span>Prefix cache ${point.prefix_cache_tokens || 0} · Concurrency ${point.concurrency}</span><span>${metric.label}: ${valueLabel(value, metric)} ${metric.unit}</span><span>${point.completed_requests ?? "?"} completed · ${point.failed_requests ?? "?"} failed</span><small>Click for full run details</small>`;
             const bounds = area.getBoundingClientRect();
@@ -305,7 +352,7 @@
     charts.forEach((chartData) => {
       const card = document.createElement("article");
       card.className = `model-chart-card${charts.length <= 2 ? " hero" : ""}`;
-      card.innerHTML = `<div class="model-chart-title"><div><p>Model performance</p><h3>${chartData.model}</h3></div><div class="chart-zoom-controls" role="group" aria-label="Zoom ${chartData.model} plot"><button type="button" data-chart-zoom-in aria-label="Zoom in">+</button><button type="button" data-chart-zoom-out aria-label="Zoom out">−</button><button type="button" data-chart-zoom-reset>Reset</button></div></div><div class="model-chart-area"></div><p class="model-chart-empty" hidden>No ${metric.label.toLowerCase()} results for this model.</p>`;
+      card.innerHTML = `<div class="model-chart-title"><div><p>Model performance</p><h3>${chartData.model}</h3></div><div class="chart-zoom-controls" role="group" aria-label="Zoom ${chartData.model} plot"><button type="button" data-chart-zoom-in aria-label="Zoom in">+</button><button type="button" data-chart-zoom-out aria-label="Zoom out">−</button><button type="button" data-chart-zoom-reset>Reset</button></div></div><div class="model-chart-area"></div><p class="model-chart-empty" hidden>No ${metric.label.toLowerCase()} results for this model.</p><div class="model-chart-legend" aria-label="Benchmark traces"></div>`;
       grid.appendChild(card);
       renderChart(card, chartData, metricName);
     });
