@@ -101,6 +101,7 @@ class RunDataRow:
     vllm_image: str | None
     vllm_commit: str | None
     dependency_revisions: tuple[tuple[str, str], ...]
+    configuration: dict[str, object]
 
 
 @dataclass(frozen=True)

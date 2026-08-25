@@ -21,12 +21,11 @@ umask 077
 cat > .env <<EOF
 DASHBOARD_DATABASE_URL=sqlite+pysqlite:///./dashboard.db
 DASHBOARD_INGEST_TOKEN=$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')
-DASHBOARD_MCP_ALLOWED_HOSTS='["<SERVICE_HOST>:*"]'
-DASHBOARD_MCP_ALLOWED_ORIGINS='["https://<SERVICE_HOST>:*"]'
+DASHBOARD_PUBLIC_URL=http://<SERVICE_HOST>:8010
 EOF
 ```
 
-For direct HTTP on a trusted private network, use `http://<SERVICE_HOST>:*` in `DASHBOARD_MCP_ALLOWED_ORIGINS`. For an HTTPS reverse proxy, use the externally visible HTTPS origin. Add every hostname or IP clients use; keep the defaults for localhost development.
+`DASHBOARD_PUBLIC_URL` is the client-visible origin. It automatically allows that exact host and origin for MCP DNS-rebinding protection and supplies links in Help and `/llms.txt`. For reverse proxies, multiple domains, or separate browser origins, set `DASHBOARD_MCP_ALLOWED_HOSTS` and `DASHBOARD_MCP_ALLOWED_ORIGINS` explicitly; those values override the derived defaults.
 
 Load the configuration:
 
@@ -39,13 +38,12 @@ set +a
 ### 3. Initialize and start
 
 ```bash
-uv run local-vllm-dashboard init-db
-uv run uvicorn local_vllm_dashboard.api.server:app \
+uv run local-vllm-dashboard serve \
   --host <BIND_ADDRESS> \
   --port 8010
 ```
 
-Use `127.0.0.1` for local-only access or a private interface when clients connect directly. For broader deployments, put the service behind an HTTPS reverse proxy. Open:
+`serve` initializes the configured database schema before starting the dashboard. Use `127.0.0.1` for local-only access or `0.0.0.0` when clients connect through the configured public address. The equivalent one-off option is `--public-url http://<SERVICE_HOST>:8010`, which overrides `DASHBOARD_PUBLIC_URL`. For broader deployments, put the service behind an HTTPS reverse proxy. Open:
 
 ```text
 <BASE_URL>/dashboard/

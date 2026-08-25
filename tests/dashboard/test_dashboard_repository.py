@@ -72,6 +72,8 @@ def test_repository_loads_all_dashboard_views() -> None:
     assert data.run_data[0].mean_ttft == 0.24936232599429786
     assert data.run_data[0].vllm_commit == "abcdef0"
     assert data.run_data[0].dependency_revisions == (("aiter", "fedcba0"),)
+    assert cast(dict[str, Any], data.run_data[0].configuration["args"])["num_warmups"] == 32
+    assert "--enable-prefix-caching" in cast(str, data.run_data[0].configuration["serve_args"])
     assert data.options.hardware == ("MI355X",)
     assert data.options.tasks == ("gsm8k",)
     assert data.options.prefix_cache_tokens == (40000,)

@@ -36,7 +36,7 @@ Review of `origin/main...feature/query-interface`, focused on concision, modular
 - `README.md:52-61`
 - Missing transport test: `tests/query/test_query_interface.py:86-110`
 
-This was independently reproduced with `Host: 10.0.0.5:8010`. The follow-up configures allowed hosts and origins explicitly, generalizes the deployment documentation, and verifies accepted and rejected transport headers. The suite now passes with 72 tests.
+This was independently reproduced with `Host: 192.0.2.5:8010`. The follow-up configures allowed hosts and origins explicitly, generalizes the deployment documentation, and verifies accepted and rejected transport headers. The suite now passes with 72 tests.
 
 ### 2. High: pagination occurs after loading all dashboard data and artifact bytes
 

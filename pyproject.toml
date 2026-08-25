@@ -44,7 +44,9 @@ format-check = "ruff format --check ."
 lint = "ruff check ."
 types = "ty check"
 test = "pytest"
-security = "bandit -c pyproject.toml -r src scripts"
+security = ["bandit", "ip-literals"]
+bandit = "bandit -c pyproject.toml -r src scripts"
+ip-literals = { shell = "git ls-files -z | xargs -0 python -m local_vllm_dashboard.security.ip_literals" }
 up = "docker compose up --build"
 down = "docker compose down"
 reset = "docker compose down --volumes"

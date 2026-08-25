@@ -30,6 +30,9 @@ jobs:
       - name: Install dependencies
         run: uv sync --locked --all-groups
 
+      - name: Reject non-public IP literals
+        run: git ls-files -z | xargs -0 uv run python -m local_vllm_dashboard.security.ip_literals
+
       - name: Run pre-commit checks
         run: uv run pre-commit run --all-files
 

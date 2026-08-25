@@ -3,7 +3,8 @@ import secrets
 from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Self
+from urllib.parse import urlsplit, urlunsplit
 
 from fastapi import (
     Depends,
@@ -17,7 +18,7 @@ from fastapi import (
     status,
 )
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -45,15 +46,44 @@ class Settings(BaseSettings):
 
     database_url: str
     ingest_token: str
+    public_url: str | None = None
     max_request_bytes: int = 4_194_304
     max_artifact_bytes: int = 1_048_576
     upload_staging_dir: Path = Path(".upload-staging")
-    mcp_allowed_hosts: tuple[str, ...] = ("127.0.0.1:*", "localhost:*", "[::1]:*")
-    mcp_allowed_origins: tuple[str, ...] = (
-        "http://127.0.0.1:*",
-        "http://localhost:*",
-        "http://[::1]:*",
-    )
+    mcp_allowed_hosts: tuple[str, ...] | None = None
+    mcp_allowed_origins: tuple[str, ...] | None = None
+
+    @model_validator(mode="after")
+    def configure_public_url(self) -> Self:
+        default_hosts = ("127.0.0.1:*", "localhost:*", "[::1]:*")
+        default_origins = (
+            "http://127.0.0.1:*",
+            "http://localhost:*",
+            "http://[::1]:*",
+        )
+        public_host = None
+        public_origin = None
+        if self.public_url is not None:
+            parsed = urlsplit(self.public_url)
+            if (
+                parsed.scheme not in {"http", "https"}
+                or parsed.hostname is None
+                or "*" in parsed.netloc
+                or parsed.username is not None
+                or parsed.password is not None
+                or parsed.path not in {"", "/"}
+                or parsed.query
+                or parsed.fragment
+            ):
+                raise ValueError("public_url must be an HTTP(S) origin without a path")
+            public_host = parsed.netloc
+            public_origin = urlunsplit((parsed.scheme, parsed.netloc, "", "", ""))
+            self.public_url = public_origin
+        if self.mcp_allowed_hosts is None:
+            self.mcp_allowed_hosts = default_hosts + ((public_host,) if public_host else ())
+        if self.mcp_allowed_origins is None:
+            self.mcp_allowed_origins = default_origins + ((public_origin,) if public_origin else ())
+        return self
 
 
 class IngestResponse(BaseModel):
@@ -70,8 +100,8 @@ def create_app(
     query_service = QueryService(factory)
     mcp_server = create_mcp_server(
         query_service,
-        allowed_hosts=selected_settings.mcp_allowed_hosts,
-        allowed_origins=selected_settings.mcp_allowed_origins,
+        allowed_hosts=selected_settings.mcp_allowed_hosts or (),
+        allowed_origins=selected_settings.mcp_allowed_origins or (),
     )
     mcp_app = create_mcp_app(mcp_server)
 
@@ -89,6 +119,7 @@ def create_app(
             factory,
             ingest_token=selected_settings.ingest_token,
             upload_staging_dir=selected_settings.upload_staging_dir,
+            public_url=selected_settings.public_url,
         ),
         name="dashboard",
     )
@@ -103,7 +134,8 @@ def create_app(
 
     @app.get("/llms.txt", include_in_schema=False, response_class=Response)
     def agent_instructions(request: Request) -> Response:
-        return Response(usage_text(str(request.base_url).rstrip("/")), media_type="text/plain")
+        base_url = selected_settings.public_url or str(request.base_url).rstrip("/")
+        return Response(usage_text(base_url), media_type="text/plain")
 
     def get_session() -> Iterator[Session]:
         with factory() as session:
