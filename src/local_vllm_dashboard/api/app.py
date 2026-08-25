@@ -42,7 +42,7 @@ from local_vllm_dashboard.usage_docs import usage_text
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="DASHBOARD_")
+    model_config = SettingsConfigDict(env_prefix="DASHBOARD_", env_file=".env")
 
     database_url: str
     ingest_token: str
