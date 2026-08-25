@@ -1,9 +1,15 @@
 import argparse
 import os
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
+
+import uvicorn
+from fastapi import FastAPI
+from sqlalchemy import Engine
 
 from local_vllm_dashboard.adapter import build_performance_bundle
-from local_vllm_dashboard.api import Settings
+from local_vllm_dashboard.api import Settings, create_app
 from local_vllm_dashboard.artifacts import artifact_contents
 from local_vllm_dashboard.contracts import Bundle
 from local_vllm_dashboard.db import initialize_schema, make_engine
@@ -47,6 +53,11 @@ def build_parser() -> argparse.ArgumentParser:
     package_results.add_argument("--container")
 
     commands.add_parser("init-db")
+
+    serve = commands.add_parser("serve")
+    serve.add_argument("--host", default="127.0.0.1")
+    serve.add_argument("--port", type=int, default=8010)
+    serve.add_argument("--public-url")
     return parser
 
 
@@ -57,10 +68,27 @@ def ingestion_token(args: argparse.Namespace) -> str:
     return token
 
 
+def serve_dashboard(
+    *,
+    host: str,
+    port: int,
+    public_url: str | None,
+    initialize: Callable[[Engine], None] = initialize_schema,
+    create_application: Callable[[Settings], FastAPI] = create_app,
+    run: Callable[..., Any] = uvicorn.run,
+) -> None:
+    settings = Settings(**({"public_url": public_url} if public_url is not None else {}))
+    initialize(make_engine(settings.database_url))
+    run(create_application(settings), host=host, port=port)
+
+
 def main() -> None:
     args = build_parser().parse_args()
     if args.command == "init-db":
         initialize_schema(make_engine(Settings().database_url))
+        return
+    if args.command == "serve":
+        serve_dashboard(host=args.host, port=args.port, public_url=args.public_url)
         return
     if args.command == "ingest-directory":
         report, summary = ingest_directories(

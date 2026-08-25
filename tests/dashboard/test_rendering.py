@@ -14,7 +14,7 @@ from local_vllm_dashboard.db import Base, BundleRepository, make_session_factory
 FIXTURES = Path(__file__).parents[1] / "fixtures" / "perf_eval"
 
 
-def dashboard_client(*, populated: bool = True) -> TestClient:
+def dashboard_client(*, populated: bool = True, public_url: str | None = None) -> TestClient:
     engine = create_engine(
         "sqlite+pysqlite:///:memory:",
         connect_args={"check_same_thread": False},
@@ -50,7 +50,12 @@ def dashboard_client(*, populated: bool = True) -> TestClient:
                 artifact_contents(accuracy, (recipe, accuracy_result)),
             )
     app = create_app(
-        Settings(database_url="sqlite+pysqlite:///:memory:", ingest_token="test-token"), factory
+        Settings(
+            database_url="sqlite+pysqlite:///:memory:",
+            ingest_token="test-token",
+            public_url=public_url,
+        ),
+        factory,
     )
     return TestClient(app)
 
@@ -91,6 +96,17 @@ def test_help_and_agent_instructions_share_usage_documentation() -> None:
     assert "http://testserver/mcp/" in agent_guide.text
     assert "http://testserver/openapi.json" in agent_guide.text
     assert "Discovery and source of truth" not in agent_guide.text
+
+
+def test_public_url_is_used_in_help_and_agent_instructions() -> None:
+    with dashboard_client(public_url="https://benchmarks.example.com:8443") as client:
+        help_page = client.get("/dashboard/help")
+        agent_guide = client.get("/llms.txt")
+
+    assert "https://benchmarks.example.com:8443/mcp/" in help_page.text
+    assert "https://benchmarks.example.com:8443/openapi.json" in help_page.text
+    assert "https://benchmarks.example.com:8443/mcp/" in agent_guide.text
+    assert "https://benchmarks.example.com:8443/openapi.json" in agent_guide.text
 
 
 def test_performance_dashboard_renders_normalized_results() -> None:
@@ -202,6 +218,16 @@ def test_runs_dashboard_renders_provenance() -> None:
     assert "Dependency commits" in response.text
     assert "aiter=fedcba0" in response.text
     assert 'class="run-row"' in response.text
+    assert 'id="raw-data-search"' in response.text
+    assert 'aria-describedby="raw-data-search-help"' in response.text
+    assert "actual vLLM command-line arguments" in response.text
+    assert 'id="raw-data-filter-count"' in response.text
+    assert 'id="raw-data-filter-empty"' in response.text
+    assert "data-search-base=" in response.text
+    assert "data-search-config=" in response.text
+    assert "num_warmups" in response.text
+    assert "enable-prefix-caching" in response.text
+    assert "raw-data-search.js" in response.text
     assert "run-links.js" in response.text
 
 

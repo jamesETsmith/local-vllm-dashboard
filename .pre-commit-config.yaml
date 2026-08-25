@@ -47,6 +47,12 @@ repos:
         entry: uv run detect-secrets-hook --baseline .secrets.baseline
         language: system
         exclude: ^(\.secrets\.baseline|uv\.lock)$
+      - id: reject-non-public-ips
+        name: reject non-public IP literals
+        entry: uv run python -m local_vllm_dashboard.security.ip_literals
+        language: system
+        types: [text]
+        exclude: ^(\.secrets\.baseline|uv\.lock)$
 
       - id: pip-audit
         name: dependency vulnerability audit

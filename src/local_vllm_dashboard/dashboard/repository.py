@@ -395,6 +395,13 @@ class DashboardRepository:
                 (revision.name.removesuffix("_commit"), revision.revision)
                 for revision in sorted(bundle.dependency_revisions, key=lambda item: item.name)
             ),
+            configuration={
+                **recipe_configuration(bundle, observation),
+                **configuration,
+                "tensor_parallel_size": optional_int(environment.get("tensor_parallel_size")),
+                "data_parallel_size": optional_int(environment.get("data_parallel_size")),
+                "expert_parallel": environment_extensions.get("expert_parallel") is True,
+            },
         )
 
     def accuracy_view(

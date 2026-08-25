@@ -35,6 +35,7 @@ def create_dashboard_app(
     *,
     ingest_token: str,
     upload_staging_dir: Path,
+    public_url: str | None = None,
 ) -> FastAPI:
     app = FastAPI(title="Local vLLM Dashboard")
     app.mount("/static", StaticFiles(directory=ROOT / "static"), name="dashboard-static")
@@ -107,7 +108,8 @@ def create_dashboard_app(
 
     @app.get("/help", response_class=HTMLResponse, name="dashboard-help")
     def help_page(request: Request) -> HTMLResponse:
-        help_html, help_toc = usage_html(str(request.base_url).removesuffix("/dashboard/"))
+        base_url = public_url or str(request.base_url).removesuffix("/dashboard/")
+        help_html, help_toc = usage_html(base_url)
         return TEMPLATES.TemplateResponse(
             request,
             "help.html",

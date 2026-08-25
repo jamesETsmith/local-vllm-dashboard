@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import anyio
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.pool import StaticPool
@@ -112,6 +113,47 @@ def test_mcp_exposes_shared_configuration_queries() -> None:
         assert filters["hardware"] == ["MI355X"]
 
     anyio.run(query_mcp)
+
+
+def test_public_url_adds_mcp_host_and_origin_allowances() -> None:
+    settings = Settings(
+        database_url="sqlite+pysqlite:///:memory:",
+        ingest_token="test-token",
+        public_url="http://192.0.2.10:8010",
+    )
+
+    assert settings.mcp_allowed_hosts is not None
+    assert settings.mcp_allowed_origins is not None
+    assert "192.0.2.10:8010" in settings.mcp_allowed_hosts
+    assert "http://192.0.2.10:8010" in settings.mcp_allowed_origins
+
+
+def test_public_url_rejects_paths_and_wildcards() -> None:
+    with pytest.raises(ValueError, match="HTTP.*origin"):
+        Settings(
+            database_url="sqlite+pysqlite:///:memory:",
+            ingest_token="test-token",
+            public_url="http://192.0.2.10:8010/dashboard",
+        )
+    with pytest.raises(ValueError, match="HTTP.*origin"):
+        Settings(
+            database_url="sqlite+pysqlite:///:memory:",
+            ingest_token="test-token",
+            public_url="http://*:8010",
+        )
+
+
+def test_explicit_mcp_allowances_override_public_url_defaults() -> None:
+    settings = Settings(
+        database_url="sqlite+pysqlite:///:memory:",
+        ingest_token="test-token",
+        public_url="https://benchmarks.example.com",
+        mcp_allowed_hosts=("proxy.internal:8443",),
+        mcp_allowed_origins=("https://portal.example.com",),
+    )
+
+    assert settings.mcp_allowed_hosts == ("proxy.internal:8443",)
+    assert settings.mcp_allowed_origins == ("https://portal.example.com",)
 
 
 def test_mcp_transport_accepts_configured_hosts_and_rejects_others() -> None:
