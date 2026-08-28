@@ -1,5 +1,7 @@
+from pathlib import Path
 from unittest.mock import Mock
 
+from local_vllm_dashboard.api import Settings
 from local_vllm_dashboard.cli import build_parser, serve_dashboard
 
 
@@ -53,3 +55,19 @@ def test_serve_initializes_database_before_starting_server(monkeypatch) -> None:
     assert settings.public_url == "http://192.0.2.10:8010"
     assert run.call_args.args == (application,)
     assert run.call_args.kwargs == {"host": "192.0.2.10", "port": 8010}
+
+
+def test_settings_load_dotenv_without_shell_sourcing(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path(".env").write_text(
+        "DASHBOARD_DATABASE_URL=sqlite+pysqlite:///./dashboard.db\n"
+        "DASHBOARD_INGEST_TOKEN=test-token\n"
+        "DASHBOARD_PUBLIC_URL=http://192.0.2.10:8010\n",
+        encoding="utf-8",
+    )
+
+    settings = Settings()
+
+    assert settings.database_url == "sqlite+pysqlite:///./dashboard.db"
+    assert len(settings.ingest_token) == 10
+    assert settings.public_url == "http://192.0.2.10:8010"

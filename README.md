@@ -16,24 +16,23 @@ uv sync --locked --all-groups
 
 Generate the ingestion token once. Reuse it across restarts and share it only with approved publishing hosts. Set the public host or IP used by clients so the MCP endpoint can reject DNS-rebinding attempts without being limited to localhost.
 
+Generate a token, then create `.env` with an editor. For example, in Bash, Zsh, or Fish:
+
 ```bash
-umask 077
-cat > .env <<EOF
-DASHBOARD_DATABASE_URL=sqlite+pysqlite:///./dashboard.db
-DASHBOARD_INGEST_TOKEN=$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')
-DASHBOARD_PUBLIC_URL=http://<SERVICE_HOST>:8010
-EOF
+python3 -c 'import secrets; print(secrets.token_urlsafe(32))'
 ```
+
+```dotenv
+DASHBOARD_DATABASE_URL=sqlite+pysqlite:///./dashboard.db
+DASHBOARD_INGEST_TOKEN=<GENERATED_TOKEN>
+DASHBOARD_PUBLIC_URL=http://<SERVICE_HOST>:8010
+```
+
+Replace `<SERVICE_HOST>` with the hostname or IP that clients use, without `http://` or a trailing slash. For example, if clients open `http://server.example:8010/dashboard/`, use `DASHBOARD_PUBLIC_URL=http://server.example:8010`. Protect the file with `chmod 600 .env` on Unix-like systems.
 
 `DASHBOARD_PUBLIC_URL` is the client-visible origin. It automatically allows that exact host and origin for MCP DNS-rebinding protection and supplies links in Help and `/llms.txt`. For reverse proxies, multiple domains, or separate browser origins, set `DASHBOARD_MCP_ALLOWED_HOSTS` and `DASHBOARD_MCP_ALLOWED_ORIGINS` explicitly; those values override the derived defaults.
 
-Load the configuration:
-
-```bash
-set -a
-source .env
-set +a
-```
+The application loads `.env` automatically. Shell-specific `source` or `export` commands are not required.
 
 ### 3. Initialize and start
 

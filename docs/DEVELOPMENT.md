@@ -28,16 +28,15 @@ export DASHBOARD_INGEST_TOKEN="$(python3 -c 'import secrets; print(secrets.token
 
 `up` starts PostgreSQL, creates the current schema from scratch, and starts the FastAPI service. Open `http://localhost:8000/dashboard/` to view stored results, `/docs` for the REST query API, or `/mcp/` for Streamable HTTP MCP. The dashboard and query interfaces remain readable without authentication; `POST /v1/bundles` requires the bearer token. Localhost is allowed by the default MCP host and origin settings. Set `DASHBOARD_PUBLIC_URL` to the client-visible HTTP(S) origin to allow its host and origin automatically. Explicit `DASHBOARD_MCP_ALLOWED_HOSTS` and `DASHBOARD_MCP_ALLOWED_ORIGINS` values override these defaults for proxy or multi-origin deployments. During early development, schema changes are intentionally breaking; use `uv run poe reset` to remove the database volume before restarting.
 
-For a local database, initialize its schema and start the service in one command:
+For a local database, create `.env` as shown in the README, then initialize its schema and start the service in one command. The application loads `.env` directly, including when the shell is Fish:
 
 ```text
-DASHBOARD_DATABASE_URL=sqlite+pysqlite:///./dashboard.db \
-DASHBOARD_INGEST_TOKEN="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')" \
 uv run local-vllm-dashboard serve \
   --host 0.0.0.0 \
-  --port 8010 \
-  --public-url http://192.0.2.10:8010
+  --port 8010
 ```
+
+Use `--public-url http://<SERVICE_HOST>:8010` to override `DASHBOARD_PUBLIC_URL` for one invocation.
 
 Create a canonical performance bundle from `perf-eval` files:
 
