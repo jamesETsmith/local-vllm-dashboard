@@ -458,30 +458,30 @@ class DashboardRepository:
     @staticmethod
     def matches_performance(view: PerformanceView, filters: DashboardFilters) -> bool:
         return (
-            (filters.hardware is None or view.hardware == filters.hardware)
-            and (filters.model is None or view.model == filters.model)
-            and (filters.input_tokens is None or view.input_tokens == filters.input_tokens)
-            and (filters.output_tokens is None or view.output_tokens == filters.output_tokens)
+            (not filters.hardware or view.hardware in filters.hardware)
+            and (not filters.model or view.model in filters.model)
+            and (not filters.input_tokens or view.input_tokens in filters.input_tokens)
+            and (not filters.output_tokens or view.output_tokens in filters.output_tokens)
             and (
-                filters.prefix_cache_tokens is None
-                or view.prefix_cache_tokens == filters.prefix_cache_tokens
+                not filters.prefix_cache_tokens
+                or view.prefix_cache_tokens in filters.prefix_cache_tokens
             )
-            and (filters.concurrency is None or view.concurrency == filters.concurrency)
-            and (filters.precision is None or view.precision == filters.precision)
+            and (not filters.concurrency or view.concurrency in filters.concurrency)
+            and (not filters.precision or view.precision in filters.precision)
         )
 
     @staticmethod
     def matches_accuracy(view: AccuracyView, filters: DashboardFilters) -> bool:
         return (
-            (filters.hardware is None or view.hardware == filters.hardware)
-            and (filters.model is None or view.model == filters.model)
-            and (filters.task is None or view.task == filters.task)
+            (not filters.hardware or view.hardware in filters.hardware)
+            and (not filters.model or view.model in filters.model)
+            and (not filters.task or view.task in filters.task)
         )
 
     @staticmethod
     def matches_run(view: RunView, filters: DashboardFilters) -> bool:
-        return (filters.hardware is None or view.hardware == filters.hardware) and (
-            filters.model is None or view.model == filters.model
+        return (not filters.hardware or view.hardware in filters.hardware) and (
+            not filters.model or view.model in filters.model
         )
 
     @staticmethod

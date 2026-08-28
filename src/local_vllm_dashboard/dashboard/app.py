@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -21,13 +21,18 @@ ROOT = Path(__file__).parent
 TEMPLATES = Jinja2Templates(directory=ROOT / "templates")
 
 
-def optional_int(value: str | None) -> int | None:
-    if value in {None, ""}:
-        return None
-    try:
-        return int(value)
-    except ValueError:
-        return None
+def query_values(request: Request, name: str) -> tuple[str, ...]:
+    return tuple(value for value in request.query_params.getlist(name) if value)
+
+
+def query_ints(request: Request, name: str) -> tuple[int, ...]:
+    values = []
+    for value in query_values(request, name):
+        try:
+            values.append(int(value))
+        except ValueError:
+            continue
+    return tuple(values)
 
 
 def create_dashboard_app(
@@ -57,24 +62,16 @@ def create_dashboard_app(
         request: Request,
         session: Annotated[Session, Depends(get_session)],
         tab: Literal["performance", "accuracy", "runs"] = "performance",
-        hardware: Annotated[str | None, Query()] = None,
-        model: Annotated[str | None, Query()] = None,
-        input_tokens: Annotated[str | None, Query()] = None,
-        output_tokens: Annotated[str | None, Query()] = None,
-        prefix_cache_tokens: Annotated[str | None, Query()] = None,
-        concurrency: Annotated[str | None, Query()] = None,
-        precision: Annotated[str | None, Query()] = None,
-        task: Annotated[str | None, Query()] = None,
     ) -> HTMLResponse:
         filters = DashboardFilters(
-            hardware=hardware or None,
-            model=model or None,
-            input_tokens=optional_int(input_tokens),
-            output_tokens=optional_int(output_tokens),
-            prefix_cache_tokens=optional_int(prefix_cache_tokens),
-            concurrency=optional_int(concurrency),
-            precision=precision or None,
-            task=task or None,
+            hardware=query_values(request, "hardware"),
+            model=query_values(request, "model"),
+            input_tokens=query_ints(request, "input_tokens"),
+            output_tokens=query_ints(request, "output_tokens"),
+            prefix_cache_tokens=query_ints(request, "prefix_cache_tokens"),
+            concurrency=query_ints(request, "concurrency"),
+            precision=query_values(request, "precision"),
+            task=query_values(request, "task"),
         )
         data = DashboardRepository(session).load(filters)
         chart = performance_chart(data.performance)
@@ -118,11 +115,13 @@ def create_dashboard_app(
 
     @app.get("/raw-data.csv", name="raw-data-download")
     def raw_data_download(
+        request: Request,
         session: Annotated[Session, Depends(get_session)],
-        hardware: Annotated[str | None, Query()] = None,
-        model: Annotated[str | None, Query()] = None,
     ) -> Response:
-        filters = DashboardFilters(hardware=hardware or None, model=model or None)
+        filters = DashboardFilters(
+            hardware=query_values(request, "hardware"),
+            model=query_values(request, "model"),
+        )
         rows = DashboardRepository(session).load(filters).run_data
         output = io.StringIO()
         writer = csv.writer(output)

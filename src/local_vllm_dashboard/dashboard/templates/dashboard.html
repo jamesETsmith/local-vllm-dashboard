@@ -35,40 +35,52 @@
 
       <form class="filters" method="get">
         <input type="hidden" name="tab" value="{{ tab }}">
-        <label>Hardware
-          <select name="hardware">
-            <option value="">All</option>
-            {% for value in data.options.hardware %}<option {{ 'selected' if filters.hardware == value else '' }}>{{ value }}</option>{% endfor %}
-          </select>
-        </label>
-        <label>Model
-          <select name="model">
-            <option value="">All</option>
-            {% for value in data.options.models %}<option {{ 'selected' if filters.model == value else '' }}>{{ value }}</option>{% endfor %}
-          </select>
-        </label>
         {% if tab == 'performance' %}
-          <label>Input tokens
-            <select name="input_tokens"><option value="">All</option>{% for value in data.options.input_tokens %}<option {{ 'selected' if filters.input_tokens == value else '' }}>{{ value }}</option>{% endfor %}</select>
+          {% set performance_filters = [
+            ('hardware', 'Hardware', data.options.hardware, filters.hardware),
+            ('model', 'Model', data.options.models, filters.model),
+            ('input_tokens', 'Input tokens', data.options.input_tokens, filters.input_tokens),
+            ('output_tokens', 'Output tokens', data.options.output_tokens, filters.output_tokens),
+            ('prefix_cache_tokens', 'Prefix cache', data.options.prefix_cache_tokens, filters.prefix_cache_tokens),
+            ('concurrency', 'Concurrency', data.options.concurrencies, filters.concurrency),
+            ('precision', 'Precision', data.options.precisions, filters.precision)
+          ] %}
+          {% for name, title, options, selected in performance_filters %}
+            <div class="filter-field">
+              <span class="filter-label">{{ title }}</span>
+              <details class="filter-dropdown">
+                <summary>{{ selected|length ~ ' selected' if selected else 'All' }}</summary>
+                <div class="filter-menu">
+                  <button type="button" class="filter-clear">Uncheck all</button>
+                  <div class="filter-options">
+                    {% for value in options %}
+                      <label><input type="checkbox" name="{{ name }}" value="{{ value }}" {{ 'checked' if value in selected else '' }}><span>{{ value if name != 'prefix_cache_tokens' or value else 'Disabled' }}</span></label>
+                    {% endfor %}
+                  </div>
+                </div>
+              </details>
+            </div>
+          {% endfor %}
+        {% else %}
+          <label>Hardware
+            <select name="hardware">
+              <option value="">All</option>
+              {% for value in data.options.hardware %}<option {{ 'selected' if value in filters.hardware else '' }}>{{ value }}</option>{% endfor %}
+            </select>
           </label>
-          <label>Output tokens
-            <select name="output_tokens"><option value="">All</option>{% for value in data.options.output_tokens %}<option {{ 'selected' if filters.output_tokens == value else '' }}>{{ value }}</option>{% endfor %}</select>
+          <label>Model
+            <select name="model">
+              <option value="">All</option>
+              {% for value in data.options.models %}<option {{ 'selected' if value in filters.model else '' }}>{{ value }}</option>{% endfor %}
+            </select>
           </label>
-          <label>Prefix cache
-            <select name="prefix_cache_tokens"><option value="">All</option>{% for value in data.options.prefix_cache_tokens %}<option value="{{ value }}" {{ 'selected' if filters.prefix_cache_tokens == value else '' }}>{{ value if value else 'Disabled' }}</option>{% endfor %}</select>
-          </label>
-          <label>Concurrency
-            <select name="concurrency"><option value="">All</option>{% for value in data.options.concurrencies %}<option {{ 'selected' if filters.concurrency == value else '' }}>{{ value }}</option>{% endfor %}</select>
-          </label>
-          <label>Precision
-            <select name="precision"><option value="">All</option>{% for value in data.options.precisions %}<option {{ 'selected' if filters.precision == value else '' }}>{{ value }}</option>{% endfor %}</select>
-          </label>
-        {% elif tab == 'accuracy' %}
-          <label>Task
-            <select name="task"><option value="">All</option>{% for value in data.options.tasks %}<option {{ 'selected' if filters.task == value else '' }}>{{ value }}</option>{% endfor %}</select>
-          </label>
+          {% if tab == 'accuracy' %}
+            <label>Task
+              <select name="task"><option value="">All</option>{% for value in data.options.tasks %}<option {{ 'selected' if value in filters.task else '' }}>{{ value }}</option>{% endfor %}</select>
+            </label>
+          {% endif %}
         {% endif %}
-        <div class="filter-actions"><a href="/?tab={{ tab }}">Reset filters</a>{% if tab == 'runs' %}<button type="submit" formaction="{{ request.scope.get('root_path', '') }}/raw-data.csv">Download selection</button>{% endif %}</div>
+        <div class="filter-actions"><a href="/?tab={{ tab }}">Reset filters</a>{% if tab == 'performance' %}<button type="submit">Apply filters</button>{% elif tab == 'runs' %}<button type="submit" formaction="{{ request.scope.get('root_path', '') }}/raw-data.csv">Download selection</button>{% endif %}</div>
       </form>
 
       {% if tab == 'performance' %}

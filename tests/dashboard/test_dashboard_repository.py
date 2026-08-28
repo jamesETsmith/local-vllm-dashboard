@@ -118,23 +118,27 @@ def test_repository_filters_performance_settings() -> None:
     repository = dashboard_repository()
 
     matching = repository.load(
-        DashboardFilters(hardware="MI355X", concurrency=4, prefix_cache_tokens=40000)
+        DashboardFilters(hardware=("MI355X",), concurrency=(4,), prefix_cache_tokens=(40000,))
     )
-    missing = repository.load(DashboardFilters(hardware="H200"))
+    matching_multiple = repository.load(
+        DashboardFilters(hardware=("H200", "MI355X"), concurrency=(4, 8))
+    )
+    missing = repository.load(DashboardFilters(hardware=("H200",)))
 
     assert len(matching.performance) == 1
+    assert len(matching_multiple.performance) == 1
     assert not missing.performance
     assert not missing.accuracy
     assert not missing.runs
     assert matching.options.hardware == ("MI355X",)
-    assert not repository.load(DashboardFilters(prefix_cache_tokens=0)).performance
+    assert not repository.load(DashboardFilters(prefix_cache_tokens=(0,))).performance
 
 
 def test_repository_filters_accuracy_task() -> None:
     repository = dashboard_repository()
 
-    matching = repository.load(DashboardFilters(task="gsm8k"))
-    missing = repository.load(DashboardFilters(task="aime25"))
+    matching = repository.load(DashboardFilters(task=("gsm8k", "aime25")))
+    missing = repository.load(DashboardFilters(task=("aime25",)))
 
     assert len(matching.accuracy) == 1
     assert not missing.accuracy
