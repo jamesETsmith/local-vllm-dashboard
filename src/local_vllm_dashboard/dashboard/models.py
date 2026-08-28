@@ -5,14 +5,14 @@ from uuid import UUID
 
 @dataclass(frozen=True)
 class DashboardFilters:
-    hardware: str | None = None
-    model: str | None = None
-    input_tokens: int | None = None
-    output_tokens: int | None = None
-    prefix_cache_tokens: int | None = None
-    concurrency: int | None = None
-    precision: str | None = None
-    task: str | None = None
+    hardware: tuple[str, ...] = ()
+    model: tuple[str, ...] = ()
+    input_tokens: tuple[int, ...] = ()
+    output_tokens: tuple[int, ...] = ()
+    prefix_cache_tokens: tuple[int, ...] = ()
+    concurrency: tuple[int, ...] = ()
+    precision: tuple[str, ...] = ()
+    task: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

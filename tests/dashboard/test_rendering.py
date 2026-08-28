@@ -290,18 +290,29 @@ def test_run_detail_renders_full_configuration() -> None:
     assert positions == sorted(positions)
 
 
-def test_dashboard_preserves_filters_in_rendered_form() -> None:
+def test_performance_dashboard_renders_multi_select_filters() -> None:
     with dashboard_client() as client:
-        response = client.get("/dashboard/?hardware=MI355X&prefix_cache_tokens=40000&concurrency=4")
+        response = client.get(
+            "/dashboard/?hardware=MI355X&hardware=H200&prefix_cache_tokens=40000&concurrency=4"
+        )
+        script = client.get("/dashboard/static/auto-filters.js")
 
     assert response.status_code == 200
-    assert "<option selected>MI355X</option>" in response.text
-    assert "<option selected>4</option>" in response.text
+    assert response.text.count('class="filter-dropdown"') == 7
+    assert response.text.count("Uncheck all") == 7
+    assert "Apply filters" in response.text
+    assert 'name="hardware" value="MI355X" checked' in response.text
+    assert 'name="prefix_cache_tokens" value="40000" checked' in response.text
+    assert 'name="concurrency" value="4" checked' in response.text
+    assert "2 selected" in response.text
     assert 'href="?tab=runs"' in response.text
     assert "hardware=MI355X&amp;tab=runs" not in response.text
-    assert 'name="prefix_cache_tokens"' in response.text
-    assert '<option value="40000" selected>40000</option>' in response.text
     assert 'name="workload"' not in response.text
+    assert script.status_code == 200
+    assert 'querySelectorAll(".filter-dropdown")' in script.text
+    assert 'querySelector(".filter-clear")' in script.text
+    assert "checkbox.checked = false" in script.text
+    assert 'checkbox.addEventListener("change"' not in script.text
 
 
 def test_dashboard_has_clear_empty_state() -> None:
