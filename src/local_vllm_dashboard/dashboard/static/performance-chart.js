@@ -240,12 +240,24 @@
           dot.appendChild(traceSymbol(symbol, xScale(point.concurrency), yScale(value), color));
           dot.appendChild(element("circle", { cx: xScale(point.concurrency), cy: yScale(value), r: 10, class: "chart-point-hit" }));
           const show = (event) => {
-            tooltip.innerHTML = `<b>${chartData.model}</b><span>${point.hardware}${point.precision ? ` · ${point.precision}` : ""}</span><span>ISL ${point.input_tokens ?? "?"} · OSL ${point.output_tokens ?? "?"}</span><span>Prefix cache ${point.prefix_cache_tokens || 0} · Concurrency ${point.concurrency}</span><span>${metric.label}: ${valueLabel(value, metric)} ${metric.unit}</span><span>${point.completed_requests ?? "?"} completed · ${point.failed_requests ?? "?"} failed</span><small>Click for full run details</small>`;
+            const configurationItems = [
+              `TP: ${point.tensor_parallel_size}`,
+              `EP: ${point.expert_parallel ? "enabled" : "disabled"}`,
+              `Spec decode: ${point.speculative_decode || "none"}`,
+              `DCP: ${point.decode_context_parallel_size}`,
+              `KV cache offload: ${point.kv_cache_offload || "none"}`,
+            ];
+            tooltip.innerHTML = `<b>${chartData.model}</b><span>${point.hardware}${point.precision ? ` · ${point.precision}` : ""}</span><span>ISL ${point.input_tokens ?? "?"} · OSL ${point.output_tokens ?? "?"}</span><span>Prefix cache ${point.prefix_cache_tokens || 0} · Concurrency ${point.concurrency}</span><ul>${configurationItems.map((item) => `<li>${item}</li>`).join("")}</ul><span>${metric.label}: ${valueLabel(value, metric)} ${metric.unit}</span><span>${point.completed_requests ?? "?"} completed · ${point.failed_requests ?? "?"} failed</span><small>Click for full run details</small>`;
             const bounds = area.getBoundingClientRect();
             const clientX = Number.isFinite(event.clientX) ? event.clientX : bounds.left + xScale(point.concurrency);
             const clientY = Number.isFinite(event.clientY) ? event.clientY : bounds.top + yScale(value);
-            tooltip.style.left = `${Math.max(8, Math.min(clientX - bounds.left + 12, bounds.width - 290))}px`;
-            tooltip.style.top = `${Math.max(clientY - bounds.top - 55, 8)}px`;
+            const tooltipWidth = tooltip.offsetWidth;
+            const tooltipHeight = tooltip.offsetHeight;
+            const left = Math.max(8, Math.min(clientX + 12, window.innerWidth - tooltipWidth - 8));
+            const preferredTop = clientY - tooltipHeight - 12;
+            const top = preferredTop >= 8 ? preferredTop : clientY + 12;
+            tooltip.style.left = `${left}px`;
+            tooltip.style.top = `${Math.max(8, Math.min(top, window.innerHeight - tooltipHeight - 8))}px`;
             tooltip.classList.add("visible");
           };
           const hide = () => tooltip.classList.remove("visible");

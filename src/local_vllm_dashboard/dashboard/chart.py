@@ -1,3 +1,5 @@
+import json
+import shlex
 from dataclasses import asdict, dataclass
 
 from local_vllm_dashboard.dashboard.models import PerformanceView
@@ -22,6 +24,11 @@ class ChartPoint:
     precision: str | None
     completed_requests: int | None
     failed_requests: int | None
+    tensor_parallel_size: int
+    expert_parallel: bool
+    speculative_decode: str | None
+    decode_context_parallel_size: int
+    kv_cache_offload: str | None
     configuration: dict[str, object]
     metrics: dict[str, float]
 
@@ -30,6 +37,67 @@ class ChartPoint:
 class ModelChart:
     model: str
     points: tuple[ChartPoint, ...]
+
+
+def serve_tokens(configuration: dict[str, object]) -> tuple[str, ...]:
+    value = configuration.get("serve_args")
+    if not isinstance(value, str):
+        return ()
+    try:
+        return tuple(shlex.split(value))
+    except ValueError:
+        return tuple(value.split())
+
+
+def flag_value(tokens: tuple[str, ...], flag: str) -> str | None:
+    for index, token in enumerate(tokens):
+        if token == flag and index + 1 < len(tokens):
+            return tokens[index + 1]
+        if token.startswith(f"{flag}="):
+            return token.partition("=")[2]
+    return None
+
+
+def speculative_decode_label(tokens: tuple[str, ...]) -> str | None:
+    config = flag_value(tokens, "--speculative-config")
+    if config:
+        try:
+            parsed = json.loads(config)
+        except json.JSONDecodeError:
+            return config
+        if isinstance(parsed, dict):
+            preferred = ("method", "model", "num_speculative_tokens")
+            values = [
+                f"{key.replace('_', ' ')}: {parsed[key]}" for key in preferred if key in parsed
+            ]
+            return ", ".join(values) or config
+    model = flag_value(tokens, "--speculative-model")
+    count = flag_value(tokens, "--num-speculative-tokens")
+    if model or count:
+        return ", ".join(
+            value
+            for value in (
+                f"model: {model}" if model else None,
+                f"tokens: {count}" if count else None,
+            )
+            if value is not None
+        )
+    return None
+
+
+def kv_cache_offload_label(tokens: tuple[str, ...]) -> str | None:
+    size = flag_value(tokens, "--kv-offloading-size")
+    backend = flag_value(tokens, "--kv-offloading-backend")
+    if not size and not backend:
+        return None
+    return ", ".join(
+        value
+        for value in (
+            f"size: {size}" if size else None,
+            f"backend: {backend}" if backend else None,
+        )
+        if value is not None
+    )
 
 
 def performance_chart(rows: tuple[PerformanceView, ...]) -> tuple[ModelChart, ...]:
@@ -42,6 +110,8 @@ def performance_chart(rows: tuple[PerformanceView, ...]) -> tuple[ModelChart, ..
         }
         if not metrics:
             continue
+        tokens = serve_tokens(row.configuration)
+        dcp = flag_value(tokens, "--decode-context-parallel-size")
         grouped.setdefault(row.model, []).append(
             ChartPoint(
                 concurrency=row.concurrency,
@@ -54,6 +124,11 @@ def performance_chart(rows: tuple[PerformanceView, ...]) -> tuple[ModelChart, ..
                 precision=row.precision,
                 completed_requests=row.completed_requests,
                 failed_requests=row.failed_requests,
+                tensor_parallel_size=row.tensor_parallel_size or 1,
+                expert_parallel=row.expert_parallel,
+                speculative_decode=speculative_decode_label(tokens),
+                decode_context_parallel_size=int(dcp) if dcp and dcp.isdigit() else 1,
+                kv_cache_offload=kv_cache_offload_label(tokens),
                 configuration=row.configuration,
                 metrics=metrics,
             )
