@@ -155,6 +155,12 @@ def build_performance_bundle(
     completed_at = parse_result_time(str(result["date"]))
     duration = float(result.get("duration") or 0)
     selected_bundle_id = bundle_id or uuid4()
+    prefix_cache_tokens = int(
+        config_args.get("prefix_repetition_prefix_len") or config_args.get("random_prefix_len") or 0
+    )
+    input_tokens = int(config["input_len"])
+    if config_args.get("random_prefix_len") is not None:
+        input_tokens += prefix_cache_tokens
 
     bundle = Bundle(
         schema_version="v1",
@@ -221,11 +227,11 @@ def build_performance_bundle(
                     "name": str(config["name"]),
                     "backend": str(config["backend"]),
                     "dataset": str(config["dataset"]),
-                    "input_tokens": int(config["input_len"]),
+                    "input_tokens": input_tokens,
                     "output_tokens": int(config["output_len"]),
                     "num_prompts": int(config["num_prompts"]),
                     "max_concurrency": int(config["max_concurrency"]),
-                    "prefix_cache_tokens": int(config_args.get("prefix_repetition_prefix_len", 0)),
+                    "prefix_cache_tokens": prefix_cache_tokens,
                     "args": config_args,
                     "recipe_config": config,
                     "serve_args": serve_args,
