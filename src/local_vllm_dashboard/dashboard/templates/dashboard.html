@@ -49,7 +49,7 @@
             <div class="filter-field">
               <span class="filter-label">{{ title }}</span>
               <details class="filter-dropdown">
-                <summary>{{ selected|length ~ ' selected' if selected else 'All' }}</summary>
+                <summary><span>{{ selected[0] if selected|length == 1 else selected|length ~ ' selected' if selected else 'All' }}</span><span class="filter-chevron" aria-hidden="true">⌄</span></summary>
                 <div class="filter-menu">
                   <button type="button" class="filter-clear">Uncheck all</button>
                   <div class="filter-options">
@@ -80,7 +80,7 @@
             </label>
           {% endif %}
         {% endif %}
-        <div class="filter-actions"><a href="/?tab={{ tab }}">Reset filters</a>{% if tab == 'performance' %}<button type="submit">Apply filters</button>{% elif tab == 'runs' %}<button type="submit" formaction="{{ request.scope.get('root_path', '') }}/raw-data.csv">Download selection</button>{% endif %}</div>
+        <div class="filter-actions"><a href="/?tab={{ tab }}">Reset filters</a>{% if tab == 'runs' %}<button type="submit" formaction="{{ request.scope.get('root_path', '') }}/raw-data.csv">Download selection</button>{% endif %}</div>
       </form>
 
       {% if tab == 'performance' %}

@@ -138,6 +138,15 @@ def test_performance_dashboard_renders_normalized_results() -> None:
     assert "model-chart-legend" in chart_script.text
     assert "traceSymbols" in chart_script.text
     assert "traceDate" in chart_script.text
+    assert "tooltip.offsetHeight" in chart_script.text
+    assert "window.innerHeight" in chart_script.text
+    assert "configurationItems" in chart_script.text
+    assert "TP:" in chart_script.text
+    assert "EP:" in chart_script.text
+    assert "Spec decode:" in chart_script.text
+    assert "DCP:" in chart_script.text
+    assert "KV cache offload:" in chart_script.text
+    assert "<ul>" in chart_script.text
     assert "bundle_id: point.bundle_id" not in chart_script.text
     assert "point.bundle_id" in chart_script.text
     assert "tickValues(xMin, xMax" in chart_script.text
@@ -299,8 +308,9 @@ def test_performance_dashboard_renders_multi_select_filters() -> None:
 
     assert response.status_code == 200
     assert response.text.count('class="filter-dropdown"') == 7
+    assert response.text.count('class="filter-chevron"') == 7
     assert response.text.count("Uncheck all") == 7
-    assert "Apply filters" in response.text
+    assert "Apply filters" not in response.text
     assert 'name="hardware" value="MI355X" checked' in response.text
     assert 'name="prefix_cache_tokens" value="40000" checked' in response.text
     assert 'name="concurrency" value="4" checked' in response.text
@@ -312,7 +322,8 @@ def test_performance_dashboard_renders_multi_select_filters() -> None:
     assert 'querySelectorAll(".filter-dropdown")' in script.text
     assert 'querySelector(".filter-clear")' in script.text
     assert "checkbox.checked = false" in script.text
-    assert 'checkbox.addEventListener("change"' not in script.text
+    assert 'checkbox.addEventListener("change", submitFilters)' in script.text
+    assert "submitFilters();" in script.text
 
 
 def test_dashboard_has_clear_empty_state() -> None:

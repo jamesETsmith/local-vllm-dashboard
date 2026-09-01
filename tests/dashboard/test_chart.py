@@ -29,7 +29,16 @@ def performance_row(
         concurrency=concurrency,
         completed_requests=10,
         failed_requests=0,
-        configuration={"expert_parallel": False},
+        configuration={
+            "expert_parallel": False,
+            "serve_args": (
+                "--tensor-parallel-size 4 --decode-context-parallel-size 8 "
+                "--speculative-config "
+                '\'{"method":"dspark","model":"example/draft",'
+                '"num_speculative_tokens":7}\' '
+                "--kv-offloading-size 32 --kv-offloading-backend native"
+            ),
+        },
         metrics=(
             MetricView(
                 name="total_token_throughput_per_gpu",
@@ -64,7 +73,14 @@ def test_chart_groups_all_metrics_by_model() -> None:
     assert [point.concurrency for point in chart[0].points] == [4, 2, 4, 8]
     assert chart[0].points[1].bundle_id == str(UUID(int=2))
     assert chart[0].points[1].hardware == "MI355X"
-    assert chart[0].points[1].configuration == {"expert_parallel": False}
+    assert chart[0].points[1].configuration["expert_parallel"] is False
+    assert chart[0].points[1].tensor_parallel_size == 4
+    assert chart[0].points[1].expert_parallel is False
+    assert chart[0].points[1].speculative_decode == (
+        "method: dspark, model: example/draft, num speculative tokens: 7"
+    )
+    assert chart[0].points[1].decode_context_parallel_size == 8
+    assert chart[0].points[1].kv_cache_offload == "size: 32, backend: native"
     assert chart[0].points[1].metrics == {
         "total_token_throughput_per_gpu": 50,
         "output_token_throughput_per_gpu": 25,

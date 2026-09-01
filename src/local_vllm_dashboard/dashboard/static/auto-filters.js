@@ -11,10 +11,15 @@ if (filterForm) {
     const checkboxes = [...dropdown.querySelectorAll('input[type="checkbox"]')];
     const clearButton = dropdown.querySelector(".filter-clear");
 
+    checkboxes.forEach((checkbox) => {
+      checkbox.addEventListener("change", submitFilters);
+    });
+
     clearButton?.addEventListener("click", () => {
       checkboxes.forEach((checkbox) => {
         checkbox.checked = false;
       });
+      submitFilters();
     });
   });
 

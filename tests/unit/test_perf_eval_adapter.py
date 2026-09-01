@@ -47,6 +47,33 @@ def test_build_performance_bundle_from_real_shape() -> None:
     assert requests.unit == "request/s/gpu"
 
 
+def test_random_prefix_is_included_in_total_input_tokens(tmp_path: Path) -> None:
+    recipe = FIXTURES / "prefix_cache_workload.yaml"
+    recipe_text = (
+        recipe.read_text()
+        .replace(
+            "dataset: prefix_repetition\n      input_len: 50000",
+            "dataset: random\n      input_len: 10000",
+        )
+        .replace(
+            "prefix_repetition_prefix_len: 40000",
+            "random_prefix_len: 40000",
+        )
+    )
+    random_prefix_recipe = tmp_path / "random_prefix_workload.yaml"
+    random_prefix_recipe.write_text(recipe_text)
+
+    bundle = build_performance_bundle(
+        random_prefix_recipe,
+        FIXTURES / "prefix_cache_partial_failure_bench.json",
+        bundle_id=UUID("018f4d6a-4c1f-7c7a-98cf-3b5c7cef3d1c"),
+    )
+
+    configuration = bundle.observations[0].configuration
+    assert configuration["input_tokens"] == 50000
+    assert configuration["prefix_cache_tokens"] == 40000
+
+
 def test_bundle_includes_container_revisions_when_provided() -> None:
     bundle = build_performance_bundle(
         FIXTURES / "prefix_cache_workload.yaml",
