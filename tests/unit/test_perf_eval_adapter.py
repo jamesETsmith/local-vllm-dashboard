@@ -2,7 +2,10 @@ from pathlib import Path
 from typing import cast
 from uuid import UUID
 
+import pytest
+
 from local_vllm_dashboard.adapter import build_performance_bundle
+from local_vllm_dashboard.adapter.perf_eval import model_identifier
 from local_vllm_dashboard.container_revisions import ContainerRevisions
 from local_vllm_dashboard.contracts import MetricName
 
@@ -45,6 +48,43 @@ def test_build_performance_bundle_from_real_shape() -> None:
     assert total.unit == "token/s/gpu"
     assert requests.value == 0.014782596617170914
     assert requests.unit == "request/s/gpu"
+
+
+@pytest.mark.parametrize(
+    ("configured_model", "expected_model"),
+    [
+        ("nvidia/Kimi-K3-NVFP4", "nvidia/Kimi-K3-NVFP4"),
+        ("/models/nvidia/Kimi-K3-NVFP4", "nvidia/Kimi-K3-NVFP4"),
+        (
+            "/root/.cache/huggingface/hub/models--nvidia--Kimi-K3-NVFP4/snapshots/abc123",
+            "nvidia/Kimi-K3-NVFP4",
+        ),
+    ],
+)
+def test_model_identifier_extracts_repository_name_from_local_path(
+    configured_model: str,
+    expected_model: str,
+) -> None:
+    assert model_identifier(configured_model) == expected_model
+
+
+def test_performance_bundle_uses_model_extracted_from_local_path(tmp_path: Path) -> None:
+    recipe = FIXTURES / "prefix_cache_workload.yaml"
+    recipe_text = recipe.read_text().replace(
+        "model: example-org/example-model",
+        "model: /models/nvidia/Kimi-K3-NVFP4",
+    )
+    local_model_recipe = tmp_path / "local_model_workload.yaml"
+    local_model_recipe.write_text(recipe_text)
+
+    bundle = build_performance_bundle(
+        local_model_recipe,
+        FIXTURES / "prefix_cache_partial_failure_bench.json",
+        bundle_id=UUID("018f4d6a-4c1f-7c7a-98cf-3b5c7cef3d1c"),
+    )
+
+    assert bundle.workload.model == "nvidia/Kimi-K3-NVFP4"
+    assert bundle.observations[0].subject["model"] == "nvidia/Kimi-K3-NVFP4"
 
 
 def test_random_prefix_is_included_in_total_input_tokens(tmp_path: Path) -> None:
