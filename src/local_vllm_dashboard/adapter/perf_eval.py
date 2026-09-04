@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -72,6 +72,19 @@ def load_mapping(path: Path) -> dict[str, Any]:
     return data
 
 
+def model_identifier(value: Any) -> str:
+    model = str(value)
+    path = PurePosixPath(model)
+    for part in path.parts:
+        if part.startswith("models--"):
+            repository_parts = part.removeprefix("models--").split("--")
+            if len(repository_parts) >= 2:
+                return "/".join(repository_parts)
+    if path.is_absolute() and len(path.parts) >= 3:
+        return "/".join(path.parts[-2:])
+    return model
+
+
 def find_bench_config(recipe: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
     configs = recipe.get("vllm_bench", {}).get("configs", [])
     concurrency = result.get("max_concurrency")
@@ -130,6 +143,7 @@ def build_performance_bundle(
     config = find_bench_config(recipe, result)
     config_args = config.get("args", {})
     vllm = recipe["vllm"]
+    model = model_identifier(vllm["model"])
     bench_metadata = recipe.get("vllm_bench", {}).get("metadata", {})
     serve_args = str(vllm.get("serve_args", ""))
     tensor_parallel = serve_arg_value(
@@ -200,7 +214,7 @@ def build_performance_bundle(
         workload=Workload(
             name=str(recipe["name"]),
             recipe_digest=file_digest(recipe_path),
-            model=str(vllm["model"]),
+            model=model,
             reference=recipe_path.name,
         ),
         environment=Environment(
@@ -222,7 +236,7 @@ def build_performance_bundle(
             Observation(
                 observation_id=f"bench:{config['name']}",
                 kind=ObservationKind.PERFORMANCE,
-                subject={"model": str(result.get("model_id") or vllm["model"])},
+                subject={"model": model},
                 configuration={
                     "name": str(config["name"]),
                     "backend": str(config["backend"]),

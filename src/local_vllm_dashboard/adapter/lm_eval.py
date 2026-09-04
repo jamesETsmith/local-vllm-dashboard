@@ -6,7 +6,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from local_vllm_dashboard import __version__
-from local_vllm_dashboard.adapter.perf_eval import file_digest, load_mapping
+from local_vllm_dashboard.adapter.perf_eval import file_digest, load_mapping, model_identifier
 from local_vllm_dashboard.contracts import (
     ArtifactRole,
     Bundle,
@@ -76,6 +76,7 @@ def build_accuracy_bundle(
         raise ValueError(f"lm-eval result does not contain task {task}")
     task_config = result.get("configs", {}).get(task, {})
     vllm = recipe["vllm"]
+    model = model_identifier(vllm["model"])
     timestamp = completed_at or datetime.fromtimestamp(result_path.stat().st_mtime, tz=UTC)
     bundle = Bundle(
         schema_version="v1",
@@ -109,7 +110,7 @@ def build_accuracy_bundle(
         workload=Workload(
             name=str(recipe["name"]),
             recipe_digest=file_digest(recipe_path),
-            model=str(vllm["model"]),
+            model=model,
             reference=recipe_path.name,
         ),
         environment=Environment(
@@ -120,7 +121,7 @@ def build_accuracy_bundle(
             Observation(
                 observation_id=f"lm-eval:{task}",
                 kind=ObservationKind.ACCURACY,
-                subject={"model": str(vllm["model"]), "task": task},
+                subject={"model": model, "task": task},
                 configuration={
                     "num_fewshot": int(task_config.get("num_fewshot", 0)),
                     "partial": False,
