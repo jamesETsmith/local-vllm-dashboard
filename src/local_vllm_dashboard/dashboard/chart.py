@@ -24,10 +24,11 @@ class ChartPoint:
     precision: str | None
     completed_requests: int | None
     failed_requests: int | None
-    tensor_parallel_size: int
+    tensor_parallel_size: int | None
+    server_settings_available: bool
     expert_parallel: bool
     speculative_decode: str | None
-    decode_context_parallel_size: int
+    decode_context_parallel_size: int | None
     kv_cache_offload: str | None
     configuration: dict[str, object]
     metrics: dict[str, float]
@@ -110,6 +111,7 @@ def performance_chart(rows: tuple[PerformanceView, ...]) -> tuple[ModelChart, ..
         }
         if not metrics:
             continue
+        server_settings_available = isinstance(row.configuration.get("serve_args"), str)
         tokens = serve_tokens(row.configuration)
         dcp = flag_value(tokens, "--decode-context-parallel-size")
         grouped.setdefault(row.model, []).append(
@@ -124,10 +126,13 @@ def performance_chart(rows: tuple[PerformanceView, ...]) -> tuple[ModelChart, ..
                 precision=row.precision,
                 completed_requests=row.completed_requests,
                 failed_requests=row.failed_requests,
-                tensor_parallel_size=row.tensor_parallel_size or 1,
+                tensor_parallel_size=row.tensor_parallel_size,
+                server_settings_available=server_settings_available,
                 expert_parallel=row.expert_parallel,
                 speculative_decode=speculative_decode_label(tokens),
-                decode_context_parallel_size=int(dcp) if dcp and dcp.isdigit() else 1,
+                decode_context_parallel_size=(
+                    int(dcp) if dcp and dcp.isdigit() else 1 if server_settings_available else None
+                ),
                 kv_cache_offload=kv_cache_offload_label(tokens),
                 configuration=row.configuration,
                 metrics=metrics,

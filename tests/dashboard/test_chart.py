@@ -11,6 +11,8 @@ def performance_row(
     prefix: int,
     hardware: str = "MI355X",
     model: str = "example/model",
+    tensor_parallel_size: int | None = 4,
+    configuration: dict[str, object] | None = None,
 ) -> PerformanceView:
     return PerformanceView(
         bundle_id=UUID(int=concurrency),
@@ -20,7 +22,7 @@ def performance_row(
         model=model,
         workload=f"attempt-{concurrency}",
         precision="mxfp4",
-        tensor_parallel_size=4,
+        tensor_parallel_size=tensor_parallel_size,
         data_parallel_size=1,
         expert_parallel=False,
         input_tokens=50000,
@@ -29,16 +31,20 @@ def performance_row(
         concurrency=concurrency,
         completed_requests=10,
         failed_requests=0,
-        configuration={
-            "expert_parallel": False,
-            "serve_args": (
-                "--tensor-parallel-size 4 --decode-context-parallel-size 8 "
-                "--speculative-config "
-                '\'{"method":"dspark","model":"example/draft",'
-                '"num_speculative_tokens":7}\' '
-                "--kv-offloading-size 32 --kv-offloading-backend native"
-            ),
-        },
+        configuration=(
+            configuration
+            if configuration is not None
+            else {
+                "expert_parallel": False,
+                "serve_args": (
+                    "--tensor-parallel-size 4 --decode-context-parallel-size 8 "
+                    "--speculative-config "
+                    '\'{"method":"dspark","model":"example/draft",'
+                    '"num_speculative_tokens":7}\' '
+                    "--kv-offloading-size 32 --kv-offloading-backend native"
+                ),
+            }
+        ),
         metrics=(
             MetricView(
                 name="total_token_throughput_per_gpu",
@@ -87,3 +93,14 @@ def test_chart_groups_all_metrics_by_model() -> None:
         "mean_ttft": 0.1,
         "mean_tpot": 0.02,
     }
+
+
+def test_chart_preserves_unavailable_server_settings() -> None:
+    chart = performance_chart(
+        (performance_row(2, 50, 0, tensor_parallel_size=None, configuration={}),)
+    )
+
+    point = chart[0].points[0]
+    assert point.tensor_parallel_size is None
+    assert point.server_settings_available is False
+    assert point.decode_context_parallel_size is None

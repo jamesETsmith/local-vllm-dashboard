@@ -97,7 +97,7 @@
             </div>
             <div class="model-chart-grid" id="performance-chart-grid"></div>
             <script type="application/json" id="performance-chart-data">{{ performance_chart_json|tojson }}</script>
-            <script src="{{ request.scope.get('root_path', '') }}/static/performance-chart.js" defer></script>
+            <script src="{{ request.scope.get('root_path', '') }}/static/performance-chart.js?v=2" defer></script>
           </section>
         {% endif %}
         {% if not performance_chart %}<section class="panel"><div class="empty"><h3>No performance results</h3><p>Adjust the filters or publish a performance bundle.</p></div></section>{% endif %}
