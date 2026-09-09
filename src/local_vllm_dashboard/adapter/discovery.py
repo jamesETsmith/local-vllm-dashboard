@@ -4,7 +4,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from local_vllm_dashboard.adapter.perf_eval import find_bench_config, load_mapping
+from local_vllm_dashboard.adapter.perf_eval import (
+    expand_bench_configs,
+    find_bench_config,
+    load_mapping,
+)
 
 
 @dataclass(frozen=True)
@@ -88,6 +92,7 @@ def discover(workloads_dir: Path, results_dir: Path) -> DiscoveryReport:
             recipe = load_mapping(path)
             if not recipe.get("name") or not recipe.get("vllm_bench", {}).get("configs"):
                 continue
+            expand_bench_configs(recipe)
             recipes.append((path, recipe))
         except (OSError, ValueError, TypeError) as error:
             invalid.append((path, str(error)))
@@ -106,7 +111,7 @@ def discover(workloads_dir: Path, results_dir: Path) -> DiscoveryReport:
     workloads: list[WorkloadMatch] = []
     recipe_paths = tuple(path for path, _ in recipes)
     for recipe_path, recipe in recipes:
-        configs = recipe["vllm_bench"]["configs"]
+        configs = expand_bench_configs(recipe)
         workload_name = str(recipe["name"])
         scoped_results = result_scope(
             recipe_path,

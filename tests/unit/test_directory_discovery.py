@@ -130,3 +130,64 @@ def test_discovery_supports_flat_export_directories(tmp_path: Path) -> None:
 
     assert report.result_count == 1
     assert report.workloads[0].configs[0].results == (results / "exported-result.json",)
+
+
+def test_discovery_expands_paired_concurrency_and_prompt_sweeps(tmp_path: Path) -> None:
+    workloads = tmp_path / "workloads"
+    results = tmp_path / "results"
+    sweep_recipe = recipe("example-run", [("sweep", 1, 10)])
+    sweep_config = sweep_recipe["vllm_bench"]["configs"][0]
+    sweep_config["max_concurrency"] = [1, 2, 4]
+    sweep_config["num_prompts"] = [10, 20, 40]
+    write_yaml(workloads / "example.yaml", sweep_recipe)
+    for concurrency, prompts in ((1, 10), (2, 20), (4, 40)):
+        write_json(
+            results / "example-run" / f"conc-{concurrency}.json",
+            result(concurrency, prompts),
+        )
+
+    report = discover(workloads, results)
+
+    assert report.config_count == 3
+    assert report.result_count == 3
+    assert [match.results for match in report.workloads[0].configs] == [
+        (results / "example-run" / "conc-1.json",),
+        (results / "example-run" / "conc-2.json",),
+        (results / "example-run" / "conc-4.json",),
+    ]
+    assert not report.unmatched_results
+
+
+def test_discovery_rejects_incompatible_sweep_lengths(tmp_path: Path) -> None:
+    workloads = tmp_path / "workloads"
+    results = tmp_path / "results"
+    sweep_recipe = recipe("example-run", [("sweep", 1, 10)])
+    sweep_config = sweep_recipe["vllm_bench"]["configs"][0]
+    sweep_config["max_concurrency"] = [1, 2]
+    sweep_config["num_prompts"] = [10]
+    recipe_path = workloads / "example.yaml"
+    write_yaml(recipe_path, sweep_recipe)
+
+    report = discover(workloads, results)
+
+    assert not report.workloads
+    assert report.invalid_files == (
+        (recipe_path, "max_concurrency and num_prompts arrays must have equal lengths"),
+    )
+
+
+def test_discovery_rejects_mixed_sweep_and_scalar_values(tmp_path: Path) -> None:
+    workloads = tmp_path / "workloads"
+    results = tmp_path / "results"
+    sweep_recipe = recipe("example-run", [("sweep", 1, 10)])
+    sweep_config = sweep_recipe["vllm_bench"]["configs"][0]
+    sweep_config["max_concurrency"] = [1, 2]
+    recipe_path = workloads / "example.yaml"
+    write_yaml(recipe_path, sweep_recipe)
+
+    report = discover(workloads, results)
+
+    assert not report.workloads
+    assert report.invalid_files == (
+        (recipe_path, "max_concurrency and num_prompts must both be arrays or scalars"),
+    )

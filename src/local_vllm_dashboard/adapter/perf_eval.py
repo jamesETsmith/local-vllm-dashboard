@@ -85,13 +85,40 @@ def model_identifier(value: Any) -> str:
     return model
 
 
-def find_bench_config(recipe: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
+def expand_bench_configs(recipe: dict[str, Any]) -> tuple[dict[str, Any], ...]:
     configs = recipe.get("vllm_bench", {}).get("configs", [])
+    expanded = []
+    for config in configs:
+        concurrency = config.get("max_concurrency")
+        prompts = config.get("num_prompts")
+        concurrency_is_array = isinstance(concurrency, list)
+        prompts_is_array = isinstance(prompts, list)
+        if concurrency_is_array != prompts_is_array:
+            raise ValueError("max_concurrency and num_prompts must both be arrays or scalars")
+        if not concurrency_is_array:
+            expanded.append(config)
+            continue
+        if len(concurrency) != len(prompts):
+            raise ValueError("max_concurrency and num_prompts arrays must have equal lengths")
+        if not concurrency:
+            raise ValueError("max_concurrency and num_prompts arrays must not be empty")
+        for scalar_concurrency, scalar_prompts in zip(concurrency, prompts, strict=True):
+            expanded.append(
+                {
+                    **config,
+                    "max_concurrency": scalar_concurrency,
+                    "num_prompts": scalar_prompts,
+                }
+            )
+    return tuple(expanded)
+
+
+def find_bench_config(recipe: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
     concurrency = result.get("max_concurrency")
     prompts = result.get("num_prompts")
     matches = [
         config
-        for config in configs
+        for config in expand_bench_configs(recipe)
         if config.get("max_concurrency") == concurrency and config.get("num_prompts") == prompts
     ]
     if len(matches) != 1:

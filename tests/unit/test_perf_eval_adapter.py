@@ -87,6 +87,29 @@ def test_performance_bundle_uses_model_extracted_from_local_path(tmp_path: Path)
     assert bundle.observations[0].subject["model"] == "nvidia/Kimi-K3-NVFP4"
 
 
+def test_performance_bundle_resolves_sweep_to_scalar_configuration(tmp_path: Path) -> None:
+    recipe = FIXTURES / "prefix_cache_workload.yaml"
+    recipe_text = recipe.read_text().replace(
+        "num_prompts: 40\n      max_concurrency: 4",
+        "num_prompts: [10, 40]\n      max_concurrency: [1, 4]",
+    )
+    sweep_recipe = tmp_path / "sweep_workload.yaml"
+    sweep_recipe.write_text(recipe_text)
+
+    bundle = build_performance_bundle(
+        sweep_recipe,
+        FIXTURES / "prefix_cache_partial_failure_bench.json",
+        bundle_id=UUID("018f4d6a-4c1f-7c7a-98cf-3b5c7cef3d1c"),
+    )
+
+    configuration = bundle.observations[0].configuration
+    recipe_config = cast(dict, configuration["recipe_config"])
+    assert configuration["num_prompts"] == 40
+    assert configuration["max_concurrency"] == 4
+    assert recipe_config["num_prompts"] == 40
+    assert recipe_config["max_concurrency"] == 4
+
+
 def test_random_prefix_is_included_in_total_input_tokens(tmp_path: Path) -> None:
     recipe = FIXTURES / "prefix_cache_workload.yaml"
     recipe_text = (
