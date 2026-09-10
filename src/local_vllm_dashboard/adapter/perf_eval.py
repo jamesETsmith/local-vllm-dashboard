@@ -197,7 +197,10 @@ def build_performance_bundle(
     duration = float(result.get("duration") or 0)
     selected_bundle_id = bundle_id or uuid4()
     prefix_cache_tokens = int(
-        config_args.get("prefix_repetition_prefix_len") or config_args.get("random_prefix_len") or 0
+        config_args.get("prefix_repetition_prefix_len")
+        or config_args.get("random_prefix_len")
+        or config.get("prefix_len")
+        or 0
     )
     input_tokens = int(config["input_len"])
     if config_args.get("random_prefix_len") is not None:
