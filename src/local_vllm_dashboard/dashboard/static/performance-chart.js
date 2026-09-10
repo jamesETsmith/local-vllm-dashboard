@@ -240,12 +240,13 @@
           dot.appendChild(traceSymbol(symbol, xScale(point.concurrency), yScale(value), color));
           dot.appendChild(element("circle", { cx: xScale(point.concurrency), cy: yScale(value), r: 10, class: "chart-point-hit" }));
           const show = (event) => {
+            const available = (value) => value ?? "unknown";
             const configurationItems = [
-              `TP: ${point.tensor_parallel_size}`,
-              `EP: ${point.expert_parallel ? "enabled" : "disabled"}`,
-              `Spec decode: ${point.speculative_decode || "none"}`,
-              `DCP: ${point.decode_context_parallel_size}`,
-              `KV cache offload: ${point.kv_cache_offload || "none"}`,
+              `TP: ${available(point.tensor_parallel_size)}`,
+              `EP: ${point.server_settings_available ? point.expert_parallel ? "enabled" : "disabled" : "unknown"}`,
+              `Spec decode: ${point.server_settings_available ? point.speculative_decode || "none" : "unknown"}`,
+              `DCP: ${available(point.decode_context_parallel_size)}`,
+              `KV cache offload: ${point.server_settings_available ? point.kv_cache_offload || "none" : "unknown"}`,
             ];
             tooltip.innerHTML = `<b>${chartData.model}</b><span>${point.hardware}${point.precision ? ` · ${point.precision}` : ""}</span><span>ISL ${point.input_tokens ?? "?"} · OSL ${point.output_tokens ?? "?"}</span><span>Prefix cache ${point.prefix_cache_tokens || 0} · Concurrency ${point.concurrency}</span><ul>${configurationItems.map((item) => `<li>${item}</li>`).join("")}</ul><span>${metric.label}: ${valueLabel(value, metric)} ${metric.unit}</span><span>${point.completed_requests ?? "?"} completed · ${point.failed_requests ?? "?"} failed</span><small>Click for full run details</small>`;
             const bounds = area.getBoundingClientRect();

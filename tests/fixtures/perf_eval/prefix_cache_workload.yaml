@@ -8,6 +8,10 @@ vllm:
   image: example-registry/vllm-openai:test
   serve_args: >-
     --tensor-parallel-size 4
+    --decode-context-parallel-size 2
+    --num-speculative-tokens 3
+    --kv-offloading-size 16
+    --kv-offloading-backend native
     --trust-remote-code
     --kv-cache-dtype fp8
     --enable-prefix-caching

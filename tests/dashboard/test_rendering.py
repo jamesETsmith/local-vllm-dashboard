@@ -1,3 +1,4 @@
+import json
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -125,6 +126,14 @@ def test_performance_dashboard_renders_normalized_results() -> None:
     assert "Throughput remains normalized per GPU" in response.text
     assert '"input_tokens": 50000' in response.text
     assert '"prefix_cache_tokens": 40000' in response.text
+    payload = response.text.split('id="performance-chart-data">', 1)[1].split("</script>", 1)[0]
+    point = json.loads(payload)[0]["points"][0]
+    assert point["tensor_parallel_size"] == 4
+    assert point["server_settings_available"] is True
+    assert point["decode_context_parallel_size"] == 2
+    assert point["speculative_decode"] == "tokens: 3"
+    assert point["kv_cache_offload"] == "size: 16, backend: native"
+    assert "undefined" not in payload
     assert "https://github.com/jamesETsmith/local-vllm-dashboard" in response.text
     assert "Raw Data Table" in response.text
     assert "Normalized results" not in response.text
@@ -141,6 +150,7 @@ def test_performance_dashboard_renders_normalized_results() -> None:
     assert "tooltip.offsetHeight" in chart_script.text
     assert "window.innerHeight" in chart_script.text
     assert "configurationItems" in chart_script.text
+    assert 'value ?? "unknown"' in chart_script.text
     assert "TP:" in chart_script.text
     assert "EP:" in chart_script.text
     assert "Spec decode:" in chart_script.text
@@ -150,6 +160,7 @@ def test_performance_dashboard_renders_normalized_results() -> None:
     assert "bundle_id: point.bundle_id" not in chart_script.text
     assert "point.bundle_id" in chart_script.text
     assert "tickValues(xMin, xMax" in chart_script.text
+    assert "/static/performance-chart.js?v=2" in response.text
 
 
 def test_accuracy_dashboard_renders_task_configuration() -> None:
