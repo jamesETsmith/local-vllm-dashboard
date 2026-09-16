@@ -205,8 +205,15 @@ def test_custom_comparison_renders_selectable_results_and_chart_controls() -> No
     assert 'aria-describedby="comparison-result-preview"' in response.text
     assert 'tabindex="0"' in response.text
     assert 'data-comparison-metric="total_token_throughput_per_gpu"' in response.text
+    assert 'data-comparison-chart-type="bar"' in response.text
+    assert 'data-comparison-chart-type="line"' in response.text
     assert 'id="comparison-chart-data"' in response.text
     assert "custom-comparison.js" in response.text
+    chart_script = client.get("/dashboard/static/custom-comparison.js")
+    assert chart_script.status_code == 200
+    assert "activeChartType" in chart_script.text
+    assert 'element("polyline"' in chart_script.text
+    assert 'element("circle"' in chart_script.text
 
 
 def test_custom_comparison_has_clear_empty_state() -> None:

@@ -16,8 +16,9 @@
   const selectAll = document.getElementById("comparison-select-all");
   const clear = document.getElementById("comparison-clear");
   const buttons = [...document.querySelectorAll("[data-comparison-metric]")];
+  const chartTypeButtons = [...document.querySelectorAll("[data-comparison-chart-type]")];
   const rows = [...document.querySelectorAll("[data-comparison-result]")];
-  if (!payload || !area || !legend || !heading || !unit || !count || !search || !filterCount || !filterEmpty || !preview || !previewTitle || !previewSummary || !previewConfig || !previewClose || !selectAll || !clear || !buttons.length || !rows.length) return;
+  if (!payload || !area || !legend || !heading || !unit || !count || !search || !filterCount || !filterEmpty || !preview || !previewTitle || !previewSummary || !previewConfig || !previewClose || !selectAll || !clear || !buttons.length || !chartTypeButtons.length || !rows.length) return;
 
   const charts = JSON.parse(payload.textContent || "[]");
   const metrics = {
@@ -28,6 +29,7 @@
   };
   const colors = ["#7559f2", "#3f8cff", "#00a183", "#e96a3a", "#d14da5", "#9a63d8", "#1b7f3a", "#bd3828"];
   let activeMetric = "total_token_throughput_per_gpu";
+  let activeChartType = "bar";
 
   const element = (name, attributes = {}) => {
     const node = document.createElementNS("http://www.w3.org/2000/svg", name);
@@ -74,6 +76,11 @@
       button.classList.toggle("active", active);
       button.setAttribute("aria-pressed", String(active));
     });
+    chartTypeButtons.forEach((button) => {
+      const active = button.dataset.comparisonChartType === activeChartType;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
     area.replaceChildren();
     legend.replaceChildren();
     if (!selected.length) {
@@ -111,13 +118,22 @@
     yTitle.textContent = `${metric.label} (${metric.unit})`;
     svg.appendChild(yTitle);
 
+    const xCenter = (index) => margin.left + (index + 0.5) * slotWidth;
+    if (activeChartType === "line") {
+      const points = selected.map(({ point }, index) => `${xCenter(index)},${yScale(point.metrics[activeMetric])}`).join(" ");
+      svg.appendChild(element("polyline", { points, class: "comparison-line", fill: "none" }));
+    }
+
     selected.forEach((result, index) => {
       const { point } = result;
       const value = point.metrics[activeMetric];
-      const x = margin.left + index * slotWidth + (slotWidth - barWidth) / 2;
+      const center = xCenter(index);
+      const x = center - barWidth / 2;
       const y = yScale(value);
       const color = colors[index % colors.length];
-      const bar = element("rect", { x, y, width: barWidth, height: margin.top + plotHeight - y, rx: 7, fill: color, class: "comparison-bar", tabindex: 0, role: "link" });
+      const mark = activeChartType === "line"
+        ? element("circle", { cx: center, cy: y, r: 7, fill: color, class: "comparison-point", tabindex: 0, role: "link" })
+        : element("rect", { x, y, width: barWidth, height: margin.top + plotHeight - y, rx: 7, fill: color, class: "comparison-bar", tabindex: 0, role: "link" });
       const show = () => {
         tooltip.innerHTML = `<b>${result.model}</b><span>${point.hardware}${point.precision ? ` · ${point.precision}` : ""}</span><span>ISL ${point.input_tokens ?? "?"} · OSL ${point.output_tokens ?? "?"} · prefix ${point.prefix_cache_tokens || 0}</span><span>Concurrency ${point.concurrency}</span><span>${metric.label}: ${valueLabel(value, metric)} ${metric.unit}</span><small>Click for full run details</small>`;
         tooltip.style.left = `${Math.max(8, Math.min(((index + 0.5) * area.clientWidth) / selected.length, area.clientWidth - 290))}px`;
@@ -126,19 +142,19 @@
       };
       const hide = () => tooltip.classList.remove("visible");
       const open = () => window.location.assign(`runs/${point.bundle_id}`);
-      bar.addEventListener("mouseenter", show);
-      bar.addEventListener("focus", show);
-      bar.addEventListener("mouseleave", hide);
-      bar.addEventListener("blur", hide);
-      bar.addEventListener("click", open);
-      bar.addEventListener("keydown", (event) => {
+      mark.addEventListener("mouseenter", show);
+      mark.addEventListener("focus", show);
+      mark.addEventListener("mouseleave", hide);
+      mark.addEventListener("blur", hide);
+      mark.addEventListener("click", open);
+      mark.addEventListener("keydown", (event) => {
         if (event.key === "Enter" || event.key === " ") open();
       });
-      svg.appendChild(bar);
-      const valueText = element("text", { x: x + barWidth / 2, y: y - 8, class: "comparison-value" });
+      svg.appendChild(mark);
+      const valueText = element("text", { x: center, y: y - 12, class: "comparison-value" });
       valueText.textContent = valueLabel(value, metric);
       svg.appendChild(valueText);
-      const label = element("text", { x: x + barWidth / 2, y: margin.top + plotHeight + 18, class: "comparison-label", transform: `rotate(35 ${x + barWidth / 2} ${margin.top + plotHeight + 18})` });
+      const label = element("text", { x: center, y: margin.top + plotHeight + 18, class: "comparison-label", transform: `rotate(35 ${center} ${margin.top + plotHeight + 18})` });
       label.textContent = `${point.hardware} · C${point.concurrency}`;
       svg.appendChild(label);
 
@@ -167,6 +183,10 @@
   previewClose.addEventListener("click", hidePreview);
   buttons.forEach((button) => button.addEventListener("click", () => {
     activeMetric = button.dataset.comparisonMetric;
+    render();
+  }));
+  chartTypeButtons.forEach((button) => button.addEventListener("click", () => {
+    activeChartType = button.dataset.comparisonChartType;
     render();
   }));
   const filterRows = () => {
