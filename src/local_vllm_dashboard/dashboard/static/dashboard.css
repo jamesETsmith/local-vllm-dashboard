@@ -132,7 +132,12 @@ button:hover { background: var(--accent-dark); }
 .comparison-chart-card { min-width: 0; margin-bottom: 0; }
 .comparison-chart-title { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 22px 24px 8px; }
 .comparison-chart-title h3 { margin-bottom: 0; font-size: 1.25rem; }
-.comparison-chart-title > span { color: var(--muted); font-size: .82rem; font-weight: 700; }
+.comparison-chart-controls { display: flex; align-items: center; gap: 14px; }
+.comparison-chart-controls > span { color: var(--muted); font-size: .82rem; font-weight: 700; }
+.chart-type-selector { display: flex; gap: 5px; }
+.chart-type-selector button { padding: 6px 10px; border: 1px solid var(--line); color: var(--muted); background: var(--surface); box-shadow: none; font-size: .78rem; }
+.chart-type-selector button:hover { color: var(--ink); background: var(--surface-soft); }
+.chart-type-selector button.active { border-color: var(--accent); color: white; background: var(--accent); }
 .comparison-chart-area { min-height: 460px; position: relative; padding: 0 12px; }
 .comparison-chart-area svg { display: block; width: 100%; height: 460px; }
 .comparison-chart-empty { display: grid; place-content: center; min-height: 430px; padding: 30px; color: var(--muted); text-align: center; }
@@ -143,6 +148,9 @@ button:hover { background: var(--accent-dark); }
 .comparison-chart-legend b { font-weight: 600; overflow-wrap: anywhere; }
 .comparison-bar { cursor: pointer; opacity: .86; transition: opacity .12s ease, filter .12s ease; }
 .comparison-bar:hover, .comparison-bar:focus { opacity: 1; filter: drop-shadow(0 5px 8px rgba(40, 31, 73, .22)); outline: none; }
+.comparison-line { stroke: var(--accent); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.comparison-point { cursor: pointer; stroke: white; stroke-width: 2.5; transition: r .12s ease, filter .12s ease; }
+.comparison-point:hover, .comparison-point:focus { r: 9; filter: drop-shadow(0 5px 8px rgba(40, 31, 73, .22)); outline: none; }
 .comparison-value { fill: var(--ink); font: 700 12px "DM Sans", sans-serif; text-anchor: middle; }
 .comparison-label { fill: var(--muted); font: 650 11px "DM Sans", sans-serif; text-anchor: start; }
 .model-performance-section { margin-bottom: 52px; }
@@ -345,5 +353,7 @@ details summary { padding: 18px 22px; cursor: pointer; color: var(--accent-dark)
   .section-heading { padding: 22px; }
   .metric-selector { display: grid; grid-template-columns: repeat(2, 1fr); }
   .metric-selector button { padding: 7px 8px; font-size: .84rem; }
+  .comparison-chart-title { align-items: flex-start; flex-direction: column; }
+  .comparison-chart-controls { width: 100%; justify-content: space-between; }
   .model-chart-area, .model-chart-area svg { min-height: 250px; height: 250px; }
 }

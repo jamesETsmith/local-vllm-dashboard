@@ -76,7 +76,13 @@
           <section class="panel comparison-chart-card">
             <div class="comparison-chart-title">
               <div><p class="eyebrow">Selected results</p><h3 id="comparison-chart-heading">Total token throughput</h3></div>
-              <span id="comparison-chart-unit">token/s/GPU</span>
+              <div class="comparison-chart-controls">
+                <div class="chart-type-selector" role="group" aria-label="Chart type">
+                  <button type="button" data-comparison-chart-type="bar">Bar</button>
+                  <button type="button" data-comparison-chart-type="line">Line</button>
+                </div>
+                <span id="comparison-chart-unit">token/s/GPU</span>
+              </div>
             </div>
             <div class="comparison-chart-area" id="comparison-chart-area"></div>
             <div class="comparison-chart-legend" id="comparison-chart-legend"></div>
