@@ -4,7 +4,7 @@ The dashboard provides human-readable comparisons and machine-readable access to
 
 ## For people
 
-- **Performance** compares configurations within each model. Select total token throughput, output token throughput, TTFT, or TPOT. Throughput is normalized per GPU.
+- **Performance** compares configurations within each model. Use the X-axis and Y-axis menus to choose total token throughput, output token throughput, TTFT, or TPOT vertically, and concurrency, P50 interactivity, or P99 interactivity horizontally. Throughput is normalized per GPU. Interactivity is output tokens divided by the matching end-to-end latency percentile and is measured in output tokens per second per user; results without the required token count and latency metric are omitted from that view.
 - **Accuracy** shows task scores with the task configuration beside each result.
 - **Raw Data Table** exposes flattened performance observations and downloads the current hardware/model selection as CSV. Its row search matches every entered term against displayed values, model, hardware, precision, TP/DP/EP settings, canonical configuration fields, benchmark `args`, and vLLM serve arguments.
 - **Custom Comparison** lets you select performance results across models and configurations, choose a bar or line chart, then plot one throughput or latency metric on a shared graph. Its config filter searches model, hardware, precision, TP/DP/EP settings, canonical configuration fields, benchmark `args`, and vLLM serve arguments. For historical results, both searches recover those arguments from the stored workload YAML without changing the accepted canonical observation.

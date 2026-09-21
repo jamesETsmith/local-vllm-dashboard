@@ -60,6 +60,8 @@ def performance_row(
             ),
             MetricView(name="mean_ttft", value=0.1, unit="s", aggregation="mean"),
             MetricView(name="mean_tpot", value=0.02, unit="s", aggregation="mean"),
+            MetricView(name="median_e2el", value=25.0, unit="s", aggregation="median"),
+            MetricView(name="p99_e2el", value=40.0, unit="s", aggregation="p99"),
         ),
     )
 
@@ -92,6 +94,8 @@ def test_chart_groups_all_metrics_by_model() -> None:
         "output_token_throughput_per_gpu": 25,
         "mean_ttft": 0.1,
         "mean_tpot": 0.02,
+        "median_e2el": 25.0,
+        "p99_e2el": 40.0,
     }
 
 

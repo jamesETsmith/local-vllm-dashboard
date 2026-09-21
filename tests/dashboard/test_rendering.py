@@ -119,10 +119,16 @@ def test_performance_dashboard_renders_normalized_results() -> None:
     assert "Compare standardized performance and accuracy results" not in response.text
     assert "Total token throughput by model" in response.text
     assert "performance-chart-data" in response.text
-    assert 'data-chart-metric="total_token_throughput_per_gpu"' in response.text
-    assert 'data-chart-metric="output_token_throughput_per_gpu"' in response.text
-    assert 'data-chart-metric="mean_ttft"' in response.text
-    assert 'data-chart-metric="mean_tpot"' in response.text
+    assert 'id="performance-chart-y-axis"' in response.text
+    assert '<option value="total_token_throughput_per_gpu" selected>' in response.text
+    assert '<option value="output_token_throughput_per_gpu">' in response.text
+    assert '<option value="mean_ttft">' in response.text
+    assert '<option value="mean_tpot">' in response.text
+    assert 'id="performance-chart-x-axis"' in response.text
+    assert '<option value="concurrency" selected>' in response.text
+    assert '<option value="p50_interactivity">' in response.text
+    assert '<option value="p99_interactivity">' in response.text
+    assert 'value="p90_interactivity"' not in response.text
     assert "Throughput remains normalized per GPU" in response.text
     assert '"input_tokens": 50000' in response.text
     assert '"prefix_cache_tokens": 40000' in response.text
@@ -160,7 +166,14 @@ def test_performance_dashboard_renders_normalized_results() -> None:
     assert "bundle_id: point.bundle_id" not in chart_script.text
     assert "point.bundle_id" in chart_script.text
     assert "tickValues(xMin, xMax" in chart_script.text
-    assert "/static/performance-chart.js?v=2" in response.text
+    assert "median_e2el" in chart_script.text
+    assert "p99_e2el" in chart_script.text
+    assert "point.output_tokens / e2eLatency" in chart_script.text
+    assert "p90_tpot" not in chart_script.text
+    assert "xAxis.value(point)" in chart_script.text
+    assert 'yAxisSelect.addEventListener("change"' in chart_script.text
+    assert 'xAxisSelect.addEventListener("change"' in chart_script.text
+    assert "/static/performance-chart.js?v=4" in response.text
 
 
 def test_accuracy_dashboard_renders_task_configuration() -> None:

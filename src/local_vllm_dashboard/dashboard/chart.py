@@ -9,6 +9,8 @@ CHART_METRICS = (
     "output_token_throughput_per_gpu",
     "mean_ttft",
     "mean_tpot",
+    "median_e2el",
+    "p99_e2el",
 )
 
 
