@@ -1,9 +1,10 @@
 (() => {
   const payload = document.getElementById("performance-chart-data");
   const grid = document.getElementById("performance-chart-grid");
-  const buttons = [...document.querySelectorAll("[data-chart-metric]")];
+  const xAxisSelect = document.getElementById("performance-chart-x-axis");
+  const yAxisSelect = document.getElementById("performance-chart-y-axis");
   const heading = document.getElementById("performance-chart-heading");
-  if (!payload || !grid || !buttons.length || !heading) return;
+  if (!payload || !grid || !xAxisSelect || !yAxisSelect || !heading) return;
 
   const charts = JSON.parse(payload.textContent || "[]");
   const metrics = {
@@ -11,6 +12,27 @@
     output_token_throughput_per_gpu: { label: "Output token throughput", unit: "token/s/GPU" },
     mean_ttft: { label: "TTFT", unit: "s" },
     mean_tpot: { label: "TPOT", unit: "s", autoRange: true },
+  };
+  const interactivity = (point, latencyMetric) => {
+    const e2eLatency = point.metrics[latencyMetric];
+    return point.output_tokens > 0 && e2eLatency > 0 ? point.output_tokens / e2eLatency : undefined;
+  };
+  const xAxes = {
+    concurrency: {
+      label: "Concurrency (requests)",
+      value: (point) => point.concurrency,
+      integer: true,
+    },
+    p50_interactivity: {
+      label: "P50 interactivity (output token/s/user)",
+      value: (point) => interactivity(point, "median_e2el"),
+      integer: false,
+    },
+    p99_interactivity: {
+      label: "P99 interactivity (output token/s/user)",
+      value: (point) => interactivity(point, "p99_e2el"),
+      integer: false,
+    },
   };
   const fallbackColors = ["#7559f2", "#3f8cff", "#9a63d8", "#00a6a6", "#d14da5"];
   const traceSymbols = ["circle", "square", "diamond", "triangle", "triangle-down", "hexagon", "pentagon", "star"];
@@ -117,9 +139,12 @@
     fullDomain,
   );
 
-  const renderChart = (card, chartData, metricName) => {
+  const renderChart = (card, chartData, metricName, xAxisName) => {
     const metric = metrics[metricName];
-    const points = chartData.points.filter((point) => point.metrics[metricName] !== undefined);
+    const xAxis = xAxes[xAxisName];
+    const points = chartData.points.filter((point) => (
+      point.metrics[metricName] !== undefined && Number.isFinite(xAxis.value(point))
+    ));
     const area = card.querySelector(".model-chart-area");
     const empty = card.querySelector(".model-chart-empty");
     const zoomIn = card.querySelector("[data-chart-zoom-in]");
@@ -157,9 +182,9 @@
     const height = 330;
     const margin = { top: 28, right: 22, bottom: 52, left: 68 };
     const values = points.map((point) => point.metrics[metricName]);
-    const concurrencies = points.map((point) => point.concurrency);
-    const rawXMin = Math.min(...concurrencies);
-    const rawXMax = Math.max(...concurrencies);
+    const xValues = points.map((point) => xAxis.value(point));
+    const rawXMin = Math.min(...xValues);
+    const rawXMax = Math.max(...xValues);
     const xPadding = rawXMin === rawXMax ? Math.max(Math.abs(rawXMin) * 0.1, 1) : 0;
     const dataMin = Math.min(...values);
     const dataMax = Math.max(...values);
@@ -205,7 +230,7 @@
         y: height - 4,
         class: "chart-axis-title",
       });
-      xTitle.textContent = "Concurrency (requests)";
+      xTitle.textContent = xAxis.label;
       svg.appendChild(xTitle);
 
       tickValues(yMin, yMax, 5).forEach((value) => {
@@ -215,20 +240,20 @@
         tick.textContent = valueLabel(value, metric);
         svg.appendChild(tick);
       });
-      tickValues(xMin, xMax, 7, true).forEach((value) => {
+      tickValues(xMin, xMax, 7, xAxis.integer).forEach((value) => {
         const tick = element("text", { x: xScale(value), y: height - 21, class: "chart-tick chart-tick-x" });
-        tick.textContent = String(value);
+        tick.textContent = xAxis.integer ? String(value) : value.toFixed(1);
         svg.appendChild(tick);
       });
 
       const plot = element("g", { "clip-path": `url(#${clipId})` });
       traceEntries.forEach(([, tracePoints], traceIndex) => {
-        const sorted = [...tracePoints].sort((left, right) => left.concurrency - right.concurrency);
+        const sorted = [...tracePoints].sort((left, right) => xAxis.value(left) - xAxis.value(right));
         const color = colorFor(sorted[0].hardware);
         const symbol = traceSymbols[traceIndex % traceSymbols.length];
         if (sorted.length > 1) {
           plot.appendChild(element("polyline", {
-            points: sorted.map((point) => `${xScale(point.concurrency)},${yScale(point.metrics[metricName])}`).join(" "),
+            points: sorted.map((point) => `${xScale(xAxis.value(point))},${yScale(point.metrics[metricName])}`).join(" "),
             fill: "none",
             stroke: color,
             class: "chart-trace",
@@ -237,8 +262,8 @@
         sorted.forEach((point) => {
           const value = point.metrics[metricName];
           const dot = element("g", { class: "chart-point-link", tabindex: 0, role: "link" });
-          dot.appendChild(traceSymbol(symbol, xScale(point.concurrency), yScale(value), color));
-          dot.appendChild(element("circle", { cx: xScale(point.concurrency), cy: yScale(value), r: 10, class: "chart-point-hit" }));
+          dot.appendChild(traceSymbol(symbol, xScale(xAxis.value(point)), yScale(value), color));
+          dot.appendChild(element("circle", { cx: xScale(xAxis.value(point)), cy: yScale(value), r: 10, class: "chart-point-hit" }));
           const show = (event) => {
             const available = (value) => value ?? "unknown";
             const configurationItems = [
@@ -248,9 +273,10 @@
               `DCP: ${available(point.decode_context_parallel_size)}`,
               `KV cache offload: ${point.server_settings_available ? point.kv_cache_offload || "none" : "unknown"}`,
             ];
-            tooltip.innerHTML = `<b>${chartData.model}</b><span>${point.hardware}${point.precision ? ` · ${point.precision}` : ""}</span><span>ISL ${point.input_tokens ?? "?"} · OSL ${point.output_tokens ?? "?"}</span><span>Prefix cache ${point.prefix_cache_tokens || 0} · Concurrency ${point.concurrency}</span><ul>${configurationItems.map((item) => `<li>${item}</li>`).join("")}</ul><span>${metric.label}: ${valueLabel(value, metric)} ${metric.unit}</span><span>${point.completed_requests ?? "?"} completed · ${point.failed_requests ?? "?"} failed</span><small>Click for full run details</small>`;
+            const xValue = xAxis.value(point);
+            tooltip.innerHTML = `<b>${chartData.model}</b><span>${point.hardware}${point.precision ? ` · ${point.precision}` : ""}</span><span>ISL ${point.input_tokens ?? "?"} · OSL ${point.output_tokens ?? "?"}</span><span>Prefix cache ${point.prefix_cache_tokens || 0} · Concurrency ${point.concurrency}</span><ul>${configurationItems.map((item) => `<li>${item}</li>`).join("")}</ul><span>${xAxis.label}: ${xAxis.integer ? xValue : xValue.toFixed(1)}</span><span>${metric.label}: ${valueLabel(value, metric)} ${metric.unit}</span><span>${point.completed_requests ?? "?"} completed · ${point.failed_requests ?? "?"} failed</span><small>Click for full run details</small>`;
             const bounds = area.getBoundingClientRect();
-            const clientX = Number.isFinite(event.clientX) ? event.clientX : bounds.left + xScale(point.concurrency);
+            const clientX = Number.isFinite(event.clientX) ? event.clientX : bounds.left + xScale(xValue);
             const clientY = Number.isFinite(event.clientY) ? event.clientY : bounds.top + yScale(value);
             const tooltipWidth = tooltip.offsetWidth;
             const tooltipHeight = tooltip.offsetHeight;
@@ -353,24 +379,20 @@
     draw();
   };
 
-  const render = (metricName) => {
+  const render = (metricName, xAxisName) => {
     const metric = metrics[metricName];
     heading.textContent = `${metric.label} by model`;
-    buttons.forEach((button) => {
-      const active = button.dataset.chartMetric === metricName;
-      button.classList.toggle("active", active);
-      button.setAttribute("aria-pressed", String(active));
-    });
     grid.replaceChildren();
     charts.forEach((chartData) => {
       const card = document.createElement("article");
       card.className = `model-chart-card${charts.length <= 2 ? " hero" : ""}`;
       card.innerHTML = `<div class="model-chart-title"><div><p>Model performance</p><h3>${chartData.model}</h3></div><div class="chart-zoom-controls" role="group" aria-label="Zoom ${chartData.model} plot"><button type="button" data-chart-zoom-in aria-label="Zoom in">+</button><button type="button" data-chart-zoom-out aria-label="Zoom out">−</button><button type="button" data-chart-zoom-reset>Reset</button></div></div><div class="model-chart-area"></div><p class="model-chart-empty" hidden>No ${metric.label.toLowerCase()} results for this model.</p><div class="model-chart-legend" aria-label="Benchmark traces"></div>`;
       grid.appendChild(card);
-      renderChart(card, chartData, metricName);
+      renderChart(card, chartData, metricName, xAxisName);
     });
   };
 
-  buttons.forEach((button) => button.addEventListener("click", () => render(button.dataset.chartMetric)));
-  render("total_token_throughput_per_gpu");
+  yAxisSelect.addEventListener("change", () => render(yAxisSelect.value, xAxisSelect.value));
+  xAxisSelect.addEventListener("change", () => render(yAxisSelect.value, xAxisSelect.value));
+  render(yAxisSelect.value, xAxisSelect.value);
 })();

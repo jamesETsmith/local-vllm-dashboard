@@ -94,16 +94,27 @@
           <section class="model-performance-section">
             <div class="model-performance-heading">
               <div><p class="eyebrow">Model performance</p><h2 id="performance-chart-heading">Total token throughput by model</h2><p>Compare benchmark configurations within each model. Throughput remains normalized per GPU.</p></div>
-              <div class="metric-selector" role="group" aria-label="Performance metric">
-                <button type="button" data-chart-metric="total_token_throughput_per_gpu">Total token throughput</button>
-                <button type="button" data-chart-metric="output_token_throughput_per_gpu">Output token throughput</button>
-                <button type="button" data-chart-metric="mean_ttft">TTFT</button>
-                <button type="button" data-chart-metric="mean_tpot">TPOT</button>
+              <div class="chart-axis-selectors">
+                <label>X-axis
+                  <select id="performance-chart-x-axis">
+                    <option value="concurrency" selected>Concurrency</option>
+                    <option value="p50_interactivity">P50 interactivity</option>
+                    <option value="p99_interactivity">P99 interactivity</option>
+                  </select>
+                </label>
+                <label>Y-axis
+                  <select id="performance-chart-y-axis">
+                    <option value="total_token_throughput_per_gpu" selected>Total token throughput</option>
+                    <option value="output_token_throughput_per_gpu">Output token throughput</option>
+                    <option value="mean_ttft">TTFT</option>
+                    <option value="mean_tpot">TPOT</option>
+                  </select>
+                </label>
               </div>
             </div>
             <div class="model-chart-grid" id="performance-chart-grid"></div>
             <script type="application/json" id="performance-chart-data">{{ performance_chart_json|tojson }}</script>
-            <script src="{{ request.scope.get('root_path', '') }}/static/performance-chart.js?v=2" defer></script>
+            <script src="{{ request.scope.get('root_path', '') }}/static/performance-chart.js?v=4" defer></script>
           </section>
         {% endif %}
         {% if not performance_chart %}<section class="panel"><div class="empty"><h3>No performance results</h3><p>Adjust the filters or publish a performance bundle.</p></div></section>{% endif %}

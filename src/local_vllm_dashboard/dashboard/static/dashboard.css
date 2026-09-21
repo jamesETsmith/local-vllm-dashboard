@@ -158,6 +158,9 @@ button:hover { background: var(--accent-dark); }
 .model-performance-heading { display: flex; align-items: end; justify-content: space-between; gap: 28px; margin-bottom: 18px; }
 .model-performance-heading h2 { margin-bottom: 7px; }
 .model-performance-heading > div:first-child > p:last-child { max-width: 650px; margin-bottom: 0; color: var(--muted); font-size: .88rem; line-height: 1.55; }
+.chart-axis-selectors { display: grid; grid-template-columns: repeat(2, minmax(180px, 1fr)); gap: 12px; min-width: min(440px, 100%); }
+.chart-axis-selectors label { color: var(--muted); font-size: .78rem; font-weight: 700; letter-spacing: .045em; text-transform: uppercase; }
+.chart-axis-selectors select { min-width: 0; }
 .metric-selector { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .metric-selector button { padding: 8px 12px; border: 1px solid var(--line); border-radius: 9px; color: var(--muted); background: var(--surface); box-shadow: none; font-size: .83rem; }
 .metric-selector button:hover { color: var(--ink); background: var(--surface-soft); }
