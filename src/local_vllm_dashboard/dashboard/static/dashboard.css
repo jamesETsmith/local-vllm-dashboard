@@ -50,8 +50,9 @@ h2 { margin-bottom: 0; font-size: 1.65rem; font-weight: 750; letter-spacing: -.0
 .tabs a.active { color: white; background: linear-gradient(135deg, var(--accent), #8d72ff); box-shadow: 0 7px 16px rgba(117, 89, 242, .24); }
 .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 14px; margin: 20px 0; padding: 20px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); box-shadow: var(--shadow-soft); }
 .filters > label, .filter-label { color: var(--muted); font-size: .84rem; font-weight: 700; letter-spacing: .045em; text-transform: uppercase; }
-select { width: 100%; margin-top: 7px; padding: 11px 34px 11px 12px; border: 1px solid var(--line); border-radius: 10px; outline: none; color: var(--ink); background: var(--surface-soft); font: inherit; font-size: .84rem; transition: border .18s ease, box-shadow .18s ease; }
-select:focus { border-color: rgba(117, 89, 242, .6); box-shadow: 0 0 0 3px var(--accent-soft); }
+select, .filters input[type="date"] { width: 100%; margin-top: 7px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; outline: none; color: var(--ink); background: var(--surface-soft); font: inherit; font-size: .84rem; transition: border .18s ease, box-shadow .18s ease; }
+select { padding-right: 34px; }
+select:focus, .filters input[type="date"]:focus { border-color: rgba(117, 89, 242, .6); box-shadow: 0 0 0 3px var(--accent-soft); }
 .filter-field { position: relative; min-width: 0; }
 .filter-label { display: block; }
 .filter-dropdown { position: relative; margin-top: 7px; }

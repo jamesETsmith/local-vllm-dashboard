@@ -1,6 +1,7 @@
 import csv
 import io
 from collections.abc import Iterator
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Annotated, Literal
 from uuid import UUID
@@ -35,6 +36,41 @@ def query_ints(request: Request, name: str) -> tuple[int, ...]:
     return tuple(values)
 
 
+def query_date(request: Request, name: str) -> date | None:
+    value = request.query_params.get(name)
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def request_filters(request: Request, *, default_date_range: bool = False) -> DashboardFilters:
+    default_end_date = date.today() if default_date_range else None
+    default_start_date = default_end_date - timedelta(weeks=4) if default_end_date else None
+    return DashboardFilters(
+        hardware=query_values(request, "hardware"),
+        model=query_values(request, "model"),
+        input_tokens=query_ints(request, "input_tokens"),
+        output_tokens=query_ints(request, "output_tokens"),
+        prefix_cache_tokens=query_ints(request, "prefix_cache_tokens"),
+        concurrency=query_ints(request, "concurrency"),
+        precision=query_values(request, "precision"),
+        task=query_values(request, "task"),
+        start_date=(
+            query_date(request, "start_date")
+            if "start_date" in request.query_params
+            else default_start_date
+        ),
+        end_date=(
+            query_date(request, "end_date")
+            if "end_date" in request.query_params
+            else default_end_date
+        ),
+    )
+
+
 def create_dashboard_app(
     factory: sessionmaker[Session],
     *,
@@ -63,16 +99,7 @@ def create_dashboard_app(
         session: Annotated[Session, Depends(get_session)],
         tab: Literal["performance", "accuracy", "runs"] = "performance",
     ) -> HTMLResponse:
-        filters = DashboardFilters(
-            hardware=query_values(request, "hardware"),
-            model=query_values(request, "model"),
-            input_tokens=query_ints(request, "input_tokens"),
-            output_tokens=query_ints(request, "output_tokens"),
-            prefix_cache_tokens=query_ints(request, "prefix_cache_tokens"),
-            concurrency=query_ints(request, "concurrency"),
-            precision=query_values(request, "precision"),
-            task=query_values(request, "task"),
-        )
+        filters = request_filters(request, default_date_range=True)
         data = DashboardRepository(session).load(filters)
         chart = performance_chart(data.performance)
         return TEMPLATES.TemplateResponse(
@@ -118,10 +145,7 @@ def create_dashboard_app(
         request: Request,
         session: Annotated[Session, Depends(get_session)],
     ) -> Response:
-        filters = DashboardFilters(
-            hardware=query_values(request, "hardware"),
-            model=query_values(request, "model"),
-        )
+        filters = request_filters(request)
         rows = DashboardRepository(session).load(filters).run_data
         output = io.StringIO()
         writer = csv.writer(output)

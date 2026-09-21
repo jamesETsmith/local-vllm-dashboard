@@ -95,7 +95,7 @@ def test_archive_preview_then_confirmation(tmp_path: Path) -> None:
             "/dashboard/upload/confirm",
             data={"token": "test-token", "confirmation": confirmation},
         )
-        dashboard_page = dashboard.get("/dashboard/")
+        dashboard_page = dashboard.get("/dashboard/?start_date=&end_date=")
 
     assert preview.status_code == 200
     assert "matched" in preview.text

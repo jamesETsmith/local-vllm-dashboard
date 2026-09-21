@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 
@@ -13,6 +13,8 @@ class DashboardFilters:
     concurrency: tuple[int, ...] = ()
     precision: tuple[str, ...] = ()
     task: tuple[str, ...] = ()
+    start_date: date | None = None
+    end_date: date | None = None
 
 
 @dataclass(frozen=True)

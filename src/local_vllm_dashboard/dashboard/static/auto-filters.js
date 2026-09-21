@@ -7,6 +7,10 @@ if (filterForm) {
     select.addEventListener("change", submitFilters);
   });
 
+  filterForm.querySelectorAll('input[type="date"]').forEach((dateInput) => {
+    dateInput.addEventListener("change", submitFilters);
+  });
+
   filterForm.querySelectorAll(".filter-dropdown").forEach((dropdown) => {
     const checkboxes = [...dropdown.querySelectorAll('input[type="checkbox"]')];
     const clearButton = dropdown.querySelector(".filter-clear");
