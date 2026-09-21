@@ -1,5 +1,5 @@
 import json
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -35,6 +35,24 @@ def dashboard_client(*, populated: bool = True, public_url: str | None = None) -
                     aiter_commit="fedcba0",
                 ),
             )
+            performance_completed_at = datetime.combine(
+                date.today() - timedelta(days=7),
+                datetime.min.time(),
+                tzinfo=UTC,
+            )
+            performance = performance.model_copy(
+                update={
+                    "run": performance.run.model_copy(
+                        update={
+                            "started_at": performance_completed_at - timedelta(minutes=15),
+                            "completed_at": performance_completed_at,
+                        }
+                    )
+                }
+            )
+            performance = performance.model_copy(
+                update={"idempotency_key": performance.calculated_idempotency_key()}
+            )
             BundleRepository(session).save(
                 performance,
                 artifact_contents(performance, (recipe, result)),
@@ -44,7 +62,7 @@ def dashboard_client(*, populated: bool = True, public_url: str | None = None) -
                 recipe,
                 accuracy_result,
                 task="gsm8k",
-                completed_at=datetime(2026, 7, 23, tzinfo=UTC),
+                completed_at=datetime.combine(date.today(), datetime.min.time(), tzinfo=UTC),
             )
             BundleRepository(session).save(
                 accuracy,
@@ -171,6 +189,55 @@ def test_accuracy_dashboard_renders_task_configuration() -> None:
     assert "Accuracy" in response.text
     assert "gsm8k" in response.text
     assert "5-shot" in response.text
+
+
+def test_dashboard_defaults_to_last_four_weeks() -> None:
+    today = date.today()
+    four_weeks_ago = today - timedelta(weeks=4)
+
+    with dashboard_client() as client:
+        response = client.get("/dashboard/")
+
+    assert response.status_code == 200
+    assert f'name="start_date" value="{four_weeks_ago.isoformat()}"' in response.text
+    assert f'name="end_date" value="{today.isoformat()}"' in response.text
+    assert "No performance results" not in response.text
+
+
+def test_dashboard_filters_results_by_completion_date_range() -> None:
+    today = date.today()
+
+    with dashboard_client() as client:
+        matching = client.get(
+            f"/dashboard/?start_date={today.isoformat()}&end_date={today.isoformat()}"
+        )
+        missing = client.get("/dashboard/?start_date=2099-01-01")
+        invalid = client.get(f"/dashboard/?start_date=not-a-date&end_date={today.isoformat()}")
+        all_dates = client.get("/dashboard/?start_date=&end_date=")
+
+    assert matching.status_code == 200
+    assert f'name="start_date" value="{today.isoformat()}"' in matching.text
+    assert f'name="end_date" value="{today.isoformat()}"' in matching.text
+    assert "No performance results" in matching.text
+    assert missing.status_code == 200
+    assert "No performance results" in missing.text
+    assert invalid.status_code == 200
+    assert 'name="start_date" value=""' in invalid.text
+    assert "No performance results" not in all_dates.text
+
+
+def test_raw_data_download_applies_completion_date_range() -> None:
+    performance_date = date.today() - timedelta(days=7)
+
+    with dashboard_client() as client:
+        matching = client.get(
+            f"/dashboard/raw-data.csv?start_date={performance_date.isoformat()}"
+            f"&end_date={performance_date.isoformat()}"
+        )
+        missing = client.get("/dashboard/raw-data.csv?start_date=2099-01-01")
+
+    assert len(matching.text.splitlines()) == 2
+    assert len(missing.text.splitlines()) == 1
 
 
 def test_custom_comparison_renders_selectable_results_and_chart_controls() -> None:
@@ -341,6 +408,8 @@ def test_performance_dashboard_renders_multi_select_filters() -> None:
     assert 'querySelector(".filter-clear")' in script.text
     assert "checkbox.checked = false" in script.text
     assert 'checkbox.addEventListener("change", submitFilters)' in script.text
+    assert "querySelectorAll('input[type=\"date\"]')" in script.text
+    assert 'dateInput.addEventListener("change", submitFilters)' in script.text
     assert "submitFilters();" in script.text
 
 

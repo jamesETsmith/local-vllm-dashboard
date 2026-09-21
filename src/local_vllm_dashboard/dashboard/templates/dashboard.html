@@ -80,6 +80,12 @@
             </label>
           {% endif %}
         {% endif %}
+        <label>From
+          <input type="date" name="start_date" value="{{ filters.start_date.isoformat() if filters.start_date else '' }}" max="{{ filters.end_date.isoformat() if filters.end_date else '' }}">
+        </label>
+        <label>Through
+          <input type="date" name="end_date" value="{{ filters.end_date.isoformat() if filters.end_date else '' }}" min="{{ filters.start_date.isoformat() if filters.start_date else '' }}">
+        </label>
         <div class="filter-actions"><a href="/?tab={{ tab }}">Reset filters</a>{% if tab == 'runs' %}<button type="submit" formaction="{{ request.scope.get('root_path', '') }}/raw-data.csv">Download selection</button>{% endif %}</div>
       </form>
 

@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any, cast
 from uuid import UUID
@@ -142,3 +142,34 @@ def test_repository_filters_accuracy_task() -> None:
 
     assert len(matching.accuracy) == 1
     assert not missing.accuracy
+
+
+def test_repository_filters_all_views_by_inclusive_completion_dates() -> None:
+    repository = dashboard_repository()
+    unfiltered = repository.load()
+    performance_date = unfiltered.performance[0].completed_at.date()
+    accuracy_date = unfiltered.accuracy[0].completed_at.date()
+
+    performance_only = repository.load(
+        DashboardFilters(start_date=performance_date, end_date=performance_date)
+    )
+    accuracy_only = repository.load(
+        DashboardFilters(start_date=accuracy_date, end_date=accuracy_date)
+    )
+    after_all_results = repository.load(DashboardFilters(start_date=date(2099, 1, 1)))
+    before_all_results = repository.load(DashboardFilters(end_date=date(2000, 1, 1)))
+
+    assert len(performance_only.performance) == 1
+    assert not performance_only.accuracy
+    assert len(performance_only.runs) == 1
+    assert len(performance_only.run_data) == 1
+    assert not accuracy_only.performance
+    assert len(accuracy_only.accuracy) == 1
+    assert len(accuracy_only.runs) == 1
+    assert not accuracy_only.run_data
+    assert not after_all_results.performance
+    assert not after_all_results.accuracy
+    assert not after_all_results.runs
+    assert not before_all_results.performance
+    assert not before_all_results.accuracy
+    assert not before_all_results.runs

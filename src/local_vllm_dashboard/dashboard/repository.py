@@ -456,9 +456,17 @@ class DashboardRepository:
         )
 
     @staticmethod
+    def matches_date(completed_at: datetime, filters: DashboardFilters) -> bool:
+        completed_date = completed_at.date()
+        return (filters.start_date is None or completed_date >= filters.start_date) and (
+            filters.end_date is None or completed_date <= filters.end_date
+        )
+
+    @staticmethod
     def matches_performance(view: PerformanceView, filters: DashboardFilters) -> bool:
         return (
-            (not filters.hardware or view.hardware in filters.hardware)
+            DashboardRepository.matches_date(view.completed_at, filters)
+            and (not filters.hardware or view.hardware in filters.hardware)
             and (not filters.model or view.model in filters.model)
             and (not filters.input_tokens or view.input_tokens in filters.input_tokens)
             and (not filters.output_tokens or view.output_tokens in filters.output_tokens)
@@ -473,15 +481,18 @@ class DashboardRepository:
     @staticmethod
     def matches_accuracy(view: AccuracyView, filters: DashboardFilters) -> bool:
         return (
-            (not filters.hardware or view.hardware in filters.hardware)
+            DashboardRepository.matches_date(view.completed_at, filters)
+            and (not filters.hardware or view.hardware in filters.hardware)
             and (not filters.model or view.model in filters.model)
             and (not filters.task or view.task in filters.task)
         )
 
     @staticmethod
     def matches_run(view: RunView, filters: DashboardFilters) -> bool:
-        return (not filters.hardware or view.hardware in filters.hardware) and (
-            not filters.model or view.model in filters.model
+        return (
+            DashboardRepository.matches_date(view.completed_at, filters)
+            and (not filters.hardware or view.hardware in filters.hardware)
+            and (not filters.model or view.model in filters.model)
         )
 
     @staticmethod
