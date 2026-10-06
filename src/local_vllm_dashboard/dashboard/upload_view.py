@@ -42,17 +42,20 @@ def upload_report_view(report: DiscoveryReport, root: Path) -> UploadReportView:
             name=workload.workload_name,
             configs=tuple(
                 UploadConfigView(
-                    name=config.config_name,
+                    name=name,
                     status=(
                         "missing"
-                        if not config.results
+                        if not match.results
                         else "repeated"
-                        if len(config.results) > 1
+                        if len(match.results) > 1
                         else "matched"
                     ),
-                    results=tuple(relative(result, root) for result in config.results),
+                    results=tuple(relative(result, root) for result in match.results),
                 )
-                for config in workload.configs
+                for match, name in (
+                    *((config, config.config_name) for config in workload.configs),
+                    *((task, f"lm-eval:{task.task_name}") for task in workload.accuracy_tasks),
+                )
             ),
         )
         for workload in report.workloads

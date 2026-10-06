@@ -69,8 +69,9 @@ def create_results_archive(
                 info.mode = 0o644
                 archive.addfile(info, fileobj=io.BytesIO(metadata))
                 revision_count += 1
-            for config in workload.configs:
-                for result_path in config.results:
+            matches = (*workload.configs, *workload.accuracy_tasks)
+            for match in matches:
+                for result_path in match.results:
                     if result_path in added:
                         continue
                     archive.add(
