@@ -1,0 +1,170 @@
+name: Code coverage
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: coverage-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out pull request
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install Python
+        run: uv python install 3.12
+
+      - name: Install locked dependencies
+        run: uv sync --locked --all-groups
+
+      - name: Run tests with coverage
+        id: tests
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set +e
+          uv run pytest \
+            --cov=local_vllm_dashboard \
+            --cov-report=term-missing \
+            --cov-report=json:coverage.json
+          test_status=$?
+          set -e
+
+          if [[ -f coverage.json ]]; then
+            uv run python - <<'PY'
+          import json
+          import os
+          import re
+          import subprocess
+          from pathlib import Path
+
+          coverage = json.loads(Path("coverage.json").read_text(encoding="utf-8"))
+          changed_lines = {}
+          current_file = None
+          diff = subprocess.run(
+              [
+                  "git",
+                  "diff",
+                  "--unified=0",
+                  "--no-ext-diff",
+                  os.environ["BASE_SHA"],
+                  os.environ["HEAD_SHA"],
+                  "--",
+                  "*.py",
+              ],
+              check=True,
+              capture_output=True,
+              text=True,
+          ).stdout
+          for line in diff.splitlines():
+              if line.startswith("+++ b/"):
+                  current_file = line[6:]
+                  changed_lines.setdefault(current_file, set())
+              elif line.startswith("+++ /dev/null"):
+                  current_file = None
+              elif current_file is not None and line.startswith("@@"):
+                  match = re.search(r"\+(\d+)(?:,(\d+))?", line)
+                  if match:
+                      start = int(match.group(1))
+                      count = int(match.group(2) or 1)
+                      changed_lines[current_file].update(range(start, start + count))
+
+          changed_statements = set()
+          changed_covered = set()
+          for filename, file_coverage in coverage["files"].items():
+              normalized = filename.removeprefix("./")
+              executable = set(file_coverage["executed_lines"]) | set(
+                  file_coverage["missing_lines"]
+              )
+              relevant = executable & changed_lines.get(normalized, set())
+              changed_statements.update((normalized, line) for line in relevant)
+              changed_covered.update(
+                  (normalized, line)
+                  for line in relevant & set(file_coverage["executed_lines"])
+              )
+
+          totals = coverage["totals"]
+          changed_total = len(changed_statements)
+          changed_covered_count = len(changed_covered)
+          summary = {
+              "schema_version": 1,
+              "pr_number": int(os.environ["PR_NUMBER"]),
+              "head_sha": os.environ["HEAD_SHA"],
+              "total": {
+                  "covered_lines": int(totals["covered_lines"]),
+                  "num_statements": int(totals["num_statements"]),
+                  "missing_lines": int(totals["missing_lines"]),
+                  "percent_covered": round(float(totals["percent_covered"]), 2),
+              },
+              "changed": {
+                  "covered_lines": changed_covered_count,
+                  "num_statements": changed_total,
+                  "missing_lines": changed_total - changed_covered_count,
+                  "percent_covered": (
+                      round(changed_covered_count * 100 / changed_total, 2)
+                      if changed_total
+                      else None
+                  ),
+              },
+          }
+          Path("coverage-summary.json").write_text(
+              json.dumps(summary, separators=(",", ":")), encoding="utf-8"
+          )
+          PY
+          fi
+
+          exit "$test_status"
+
+      - name: Add coverage to job summary
+        if: always() && hashFiles('coverage-summary.json') != ''
+        shell: bash
+        run: |
+          uv run python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+
+          summary = json.loads(Path("coverage-summary.json").read_text(encoding="utf-8"))
+          print("## Code coverage")
+          print()
+          print("| Scope | Coverage | Covered lines | Statements | Missing |")
+          print("| --- | ---: | ---: | ---: | ---: |")
+          for label, key in (("Total", "total"), ("Changed lines", "changed")):
+              result = summary[key]
+              percent = (
+                  f"{result['percent_covered']:.2f}%"
+                  if result["percent_covered"] is not None
+                  else "N/A"
+              )
+              print(
+                  f"| {label} | {percent} | {result['covered_lines']} "
+                  f"| {result['num_statements']} | {result['missing_lines']} |"
+              )
+          PY
+
+      - name: Upload coverage results
+        if: always() && hashFiles('coverage-summary.json') != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: coverage-results
+          path: coverage-summary.json
+          retention-days: 14
