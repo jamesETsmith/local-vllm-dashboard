@@ -3,7 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from local_vllm_dashboard.adapter import DiscoveryReport, build_performance_bundle, discover
+from local_vllm_dashboard.adapter import (
+    DiscoveryReport,
+    build_accuracy_bundle,
+    build_performance_bundle,
+    discover,
+)
 from local_vllm_dashboard.artifacts import artifact_contents
 from local_vllm_dashboard.publisher import Publisher
 
@@ -44,6 +49,17 @@ def render_report(report: DiscoveryReport, workloads_dir: Path, results_dir: Pat
                 lines.extend(
                     f"           - {relative(result, results_dir)}" for result in config.results
                 )
+        for task in workload.accuracy_tasks:
+            label = f"lm-eval:{task.task_name}"
+            if not task.results:
+                lines.append(f"  MISSING  {label}")
+            elif len(task.results) == 1:
+                lines.append(f"  MATCHED  {label} -> {relative(task.results[0], results_dir)}")
+            else:
+                lines.append(f"  REPEATED {label} ({len(task.results)} results)")
+                lines.extend(
+                    f"           - {relative(result, results_dir)}" for result in task.results
+                )
     if report.unmatched_results:
         lines.append(f"\nUnmatched results ({len(report.unmatched_results)}):")
         lines.extend(f"  - {relative(path, results_dir)}" for path in report.unmatched_results)
@@ -64,14 +80,25 @@ def publish_report(
     failed = []
     with Publisher(endpoint, token=token) as publisher:
         for workload in report.workloads:
-            for config in workload.configs:
-                for result_path in config.results:
+            matches = (
+                *((config, None) for config in workload.configs),
+                *((task, task.task_name) for task in workload.accuracy_tasks),
+            )
+            for match, task_name in matches:
+                for result_path in match.results:
                     try:
-                        bundle = build_performance_bundle(
-                            workload.recipe_path,
-                            result_path,
-                            container=container,
-                        )
+                        if task_name is None:
+                            bundle = build_performance_bundle(
+                                workload.recipe_path,
+                                result_path,
+                                container=container,
+                            )
+                        else:
+                            bundle = build_accuracy_bundle(
+                                workload.recipe_path,
+                                result_path,
+                                task=task_name,
+                            )
                         artifacts = artifact_contents(
                             bundle,
                             (workload.recipe_path, result_path),

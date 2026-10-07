@@ -191,3 +191,60 @@ def test_discovery_rejects_mixed_sweep_and_scalar_values(tmp_path: Path) -> None
     assert report.invalid_files == (
         (recipe_path, "max_concurrency and num_prompts must both be arrays or scalars"),
     )
+
+
+def test_discovery_matches_nested_accuracy_results_by_declared_task(tmp_path: Path) -> None:
+    workloads = tmp_path / "workloads"
+    results = tmp_path / "results"
+    accuracy_recipe = recipe("mixed-run", [("conc-2", 2, 20)])
+    accuracy_recipe["lm_eval"] = {
+        "tasks": [{"name": "gsm8k", "num_fewshot": 5}, {"name": "arc_easy"}]
+    }
+    recipe_path = workloads / "mixed.yaml"
+    accuracy_path = results / "mixed-run" / "gsm8k" / "results_2026.json"
+    unmatched_path = results / "other" / "results_2026.json"
+    write_yaml(recipe_path, accuracy_recipe)
+    write_json(
+        accuracy_path,
+        {
+            "results": {"gsm8k": {"exact_match": 0.742}},
+            "configs": {"gsm8k": {"num_fewshot": 5}},
+        },
+    )
+    write_json(unmatched_path, {"results": {"mmlu": {"acc": 0.5}}})
+
+    report = discover(workloads, results)
+    rendered = render_report(report, workloads, results)
+
+    assert report.accuracy_count == 1
+    assert report.workloads[0].accuracy_tasks[0].task_name == "arc_easy"
+    assert not report.workloads[0].accuracy_tasks[0].results
+    assert report.workloads[0].accuracy_tasks[1].task_name == "gsm8k"
+    assert report.workloads[0].accuracy_tasks[1].results == (accuracy_path,)
+    assert report.unmatched_results == (unmatched_path,)
+    assert "MISSING  lm-eval:arc_easy" in rendered
+    assert "MATCHED  lm-eval:gsm8k -> mixed-run/gsm8k/results_2026.json" in rendered
+
+
+def test_discovery_reports_invalid_accuracy_recipe_and_result(tmp_path: Path) -> None:
+    workloads = tmp_path / "workloads"
+    results = tmp_path / "results"
+    invalid_recipe = recipe("invalid-run", [("conc-2", 2, 20)])
+    invalid_recipe["lm_eval"] = {"tasks": [{"num_fewshot": 5}]}
+    recipe_path = workloads / "invalid.yaml"
+    result_path = results / "invalid-run" / "results.json"
+    write_yaml(recipe_path, invalid_recipe)
+    write_json(result_path, {"results": []})
+
+    report = discover(workloads, results)
+
+    assert not report.workloads
+    assert report.invalid_files == tuple(
+        sorted(
+            (
+                (recipe_path, "lm_eval task must have a name"),
+                (result_path, "lm-eval results must be a mapping"),
+            ),
+            key=lambda item: item[0],
+        )
+    )

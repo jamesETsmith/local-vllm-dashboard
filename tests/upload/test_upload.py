@@ -5,7 +5,12 @@ from pathlib import Path
 
 import pytest
 
-from local_vllm_dashboard.db import BundleRepository, make_engine, make_session_factory
+from local_vllm_dashboard.db import (
+    BundleRepository,
+    initialize_schema,
+    make_engine,
+    make_session_factory,
+)
 from local_vllm_dashboard.upload import (
     UploadedFile,
     archive_files,
@@ -96,6 +101,45 @@ vllm_bench:
 
     assert preview.report.config_count == 1
     assert preview.report.result_count == 1
+
+
+def test_ingest_preview_saves_accuracy_result(tmp_path: Path) -> None:
+    preview = stage_upload(
+        (
+            UploadedFile(
+                "workloads/demo.yaml",
+                b"""name: demo
+gpu: MI355X
+num_gpus: 1
+vllm: {model: example/model, image: example/image}
+lm_eval:
+  tasks:
+    - name: gsm8k
+      num_fewshot: 5
+""",
+            ),
+            UploadedFile(
+                "results/demo/gsm8k/results.json",
+                json.dumps(
+                    {
+                        "results": {"gsm8k": {"exact_match": 0.742}},
+                        "configs": {"gsm8k": {"num_fewshot": 5}},
+                    }
+                ).encode(),
+            ),
+        ),
+        tmp_path,
+    )
+    engine = make_engine("sqlite+pysqlite:///:memory:")
+    initialize_schema(engine)
+    factory = make_session_factory(engine)
+
+    with factory() as session:
+        result = ingest_preview(preview, BundleRepository(session))
+
+    assert result.accepted == 1
+    assert result.duplicate == 0
+    assert not result.failed
 
 
 def test_ingest_preview_rolls_back_between_failures(tmp_path: Path) -> None:

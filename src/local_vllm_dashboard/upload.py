@@ -6,7 +6,12 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
-from local_vllm_dashboard.adapter import DiscoveryReport, build_performance_bundle, discover
+from local_vllm_dashboard.adapter import (
+    DiscoveryReport,
+    build_accuracy_bundle,
+    build_performance_bundle,
+    discover,
+)
 from local_vllm_dashboard.artifacts import artifact_contents
 from local_vllm_dashboard.db import BundleRepository, SaveStatus
 
@@ -133,10 +138,21 @@ def ingest_preview(preview: UploadPreview, repository: BundleRepository) -> Uplo
     duplicate = 0
     failed = []
     for workload in preview.report.workloads:
-        for config in workload.configs:
-            for result_path in config.results:
+        matches = (
+            *((config, None) for config in workload.configs),
+            *((task, task.task_name) for task in workload.accuracy_tasks),
+        )
+        for match, task_name in matches:
+            for result_path in match.results:
                 try:
-                    bundle = build_performance_bundle(workload.recipe_path, result_path)
+                    if task_name is None:
+                        bundle = build_performance_bundle(workload.recipe_path, result_path)
+                    else:
+                        bundle = build_accuracy_bundle(
+                            workload.recipe_path,
+                            result_path,
+                            task=task_name,
+                        )
                     artifacts = artifact_contents(bundle, (workload.recipe_path, result_path))
                     outcome = repository.save(bundle, artifacts)
                     if outcome.status == SaveStatus.ACCEPTED:
