@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable
+import shlex
+from collections.abc import Iterable, Mapping
 from datetime import datetime
 from typing import Any, cast
 from uuid import UUID
@@ -21,6 +22,7 @@ from local_vllm_dashboard.dashboard.models import (
     FilterOptions,
     MetricView,
     PerformanceView,
+    RecipeCommandsView,
     RunDataRow,
     RunDetailView,
     RunView,
@@ -145,10 +147,152 @@ def reproduction_command(artifacts: list[ArtifactRecord]) -> str | None:
     return f"./lib/run.sh {recipe}"
 
 
-def recipe_configuration(
-    bundle: BundleRecord,
-    observation: ObservationRecord,
-) -> dict[str, object]:
+def shell_value(value: object) -> str:
+    if value is True:
+        return "true"
+    if value is False:
+        return "false"
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, separators=(",", ":"))
+    return str(value)
+
+
+def shell_command(lines: list[list[str]]) -> str:
+    return " \\\n  ".join(shlex.join(line) for line in lines)
+
+
+def cli_argument_lines(arguments: list[str]) -> list[list[str]]:
+    lines = []
+    index = 0
+    while index < len(arguments):
+        line = [arguments[index]]
+        if arguments[index].startswith("-") and index + 1 < len(arguments):
+            if not arguments[index + 1].startswith("-"):
+                index += 1
+                line.append(arguments[index])
+        lines.append(line)
+        index += 1
+    return lines
+
+
+def benchmark_extra_args(arguments: object) -> list[str]:
+    if not isinstance(arguments, dict):
+        return []
+    parts = []
+    for name, value in arguments.items():
+        flag = f"--{str(name).lstrip('-').replace('_', '-')}"
+        if value is True:
+            parts.append(flag)
+        elif value is False or value is None:
+            continue
+        elif isinstance(value, list):
+            for item in value:
+                parts.extend((flag, shell_value(item)))
+        else:
+            parts.extend((flag, shell_value(value)))
+    return parts
+
+
+def recipe_commands(
+    recipe: dict[str, Any],
+    configuration: Mapping[str, object],
+) -> RecipeCommandsView | None:
+    vllm = mapping(recipe.get("vllm"))
+    model = optional_string(vllm.get("model"))
+    image = optional_string(vllm.get("image"))
+    serve_args = optional_string(vllm.get("serve_args"))
+    dataset = optional_string(configuration.get("dataset"))
+    runtime = optional_string(vllm.get("runtime")) or "docker"
+    num_prompts = optional_int(configuration.get("num_prompts"))
+    max_concurrency = optional_int(configuration.get("max_concurrency"))
+    input_tokens = optional_int(configuration.get("input_tokens"))
+    output_tokens = optional_int(configuration.get("output_tokens"))
+    if (
+        model is None
+        or image is None
+        or dataset is None
+        or num_prompts is None
+        or max_concurrency is None
+        or runtime != "docker"
+    ):
+        return None
+
+    gpu = optional_string(recipe.get("gpu")) or ""
+    server_runtime_args = (
+        [
+            "--device=/dev/kfd",
+            "--device=/dev/dri",
+            "--security-opt",
+            "seccomp=unconfined",
+            "--group-add",
+            "video",
+            "--privileged",
+        ]
+        if gpu.upper().startswith("MI")
+        else ["--gpus", "all"]
+    )
+    server_lines = [
+        [
+            "docker",
+            "run",
+            "--rm",
+            *server_runtime_args,
+            "--ipc=host",
+            "--ulimit",
+            "nofile=65536:65536",
+        ],
+        ["-p", "8000:8000"],
+        ["-e", "VLLM_ENGINE_READY_TIMEOUT_S=3600"],
+    ]
+    environment = mapping(vllm.get("env"))
+    for name, value in environment.items():
+        server_lines.append(["-e", f"{name}={shell_value(value)}"])
+    hf_home = optional_string(environment.get("HF_HOME"))
+    if hf_home:
+        server_lines.append(["-v", f"{hf_home}:{hf_home}"])
+    server_lines.extend(([image], [model], ["--port", "8000"]))
+    serve_arguments = shlex.split(serve_args) if serve_args else []
+    server_lines.extend(cli_argument_lines(serve_arguments))
+
+    backend = optional_string(configuration.get("backend"))
+    benchmark_lines = [["vllm", "bench", "serve"]]
+    if backend:
+        benchmark_lines.extend((["--backend", backend], ["--base-url", "http://127.0.0.1:8000"]))
+        if backend == "openai-chat":
+            benchmark_lines.append(["--endpoint", "/v1/chat/completions"])
+    else:
+        benchmark_lines.extend((["--host", "127.0.0.1"], ["--port", "8000"]))
+    benchmark_lines.extend(
+        (
+            ["--model", model],
+            ["--dataset-name", dataset],
+            ["--num-prompts", str(num_prompts)],
+            ["--max-concurrency", str(max_concurrency)],
+        )
+    )
+    if "--trust-remote-code" in serve_arguments:
+        benchmark_lines.append(["--trust-remote-code"])
+    if dataset == "random" and input_tokens is not None and output_tokens is not None:
+        benchmark_lines.extend(
+            (
+                ["--random-input-len", str(input_tokens)],
+                ["--random-output-len", str(output_tokens)],
+                ["--ignore-eos"],
+            )
+        )
+    benchmark_lines.extend(cli_argument_lines(benchmark_extra_args(configuration.get("args"))))
+
+    server = shell_command(server_lines)
+    benchmark = shell_command(benchmark_lines)
+    return RecipeCommandsView(
+        server=server,
+        server_html=highlight(server, BashLexer(), HtmlFormatter(nowrap=True)),
+        benchmark=benchmark,
+        benchmark_html=highlight(benchmark, BashLexer(), HtmlFormatter(nowrap=True)),
+    )
+
+
+def workload_recipe(bundle: BundleRecord) -> dict[str, Any]:
     artifact = next(
         (artifact for artifact in bundle.artifacts if artifact.role == "workload_recipe"),
         None,
@@ -159,8 +303,14 @@ def recipe_configuration(
         recipe = yaml.safe_load(artifact.content.decode("utf-8"))
     except (UnicodeDecodeError, yaml.YAMLError):
         return {}
-    if not isinstance(recipe, dict):
-        return {}
+    return mapping(recipe)
+
+
+def recipe_configuration(
+    bundle: BundleRecord,
+    observation: ObservationRecord,
+) -> dict[str, object]:
+    recipe = workload_recipe(bundle)
     vllm = mapping(recipe.get("vllm"))
     benchmark = mapping(recipe.get("vllm_bench"))
     configs = benchmark.get("configs")
@@ -262,8 +412,42 @@ class DashboardRepository:
         artifact_records = sorted(bundle.artifacts, key=lambda artifact: artifact.path)
         command = reproduction_command(artifact_records)
         payload_json = json.dumps(bundle.payload, indent=2, sort_keys=True)
+        recipe = workload_recipe(bundle)
+        payload_run = mapping(bundle.payload.get("run"))
+        payload_vllm = mapping(payload_run.get("vllm"))
+        payload_workload = mapping(bundle.payload.get("workload"))
+        recipe_vllm = {
+            **mapping(recipe.get("vllm")),
+            **(
+                {"image": payload_vllm["image"]}
+                if optional_string(payload_vllm.get("image"))
+                else {}
+            ),
+            **(
+                {"model": payload_workload["model"]}
+                if optional_string(payload_workload.get("model"))
+                else {}
+            ),
+        }
+        recipe = {**recipe, "vllm": recipe_vllm}
+        recipes = tuple(
+            commands
+            for observation in observations
+            if observation.kind == "performance"
+            for commands in (
+                recipe_commands(
+                    recipe,
+                    {
+                        **recipe_configuration(bundle, observation),
+                        **observation.configuration,
+                    },
+                ),
+            )
+            if commands is not None
+        )
         return RunDetailView(
             run=self.run_view(bundle),
+            recipes=recipes,
             reproduction_command=command,
             reproduction_command_html=(
                 highlight(command, BashLexer(), HtmlFormatter(nowrap=True)) if command else None

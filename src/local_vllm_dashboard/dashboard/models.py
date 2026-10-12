@@ -138,8 +138,17 @@ class SourceArtifactView:
 
 
 @dataclass(frozen=True)
+class RecipeCommandsView:
+    server: str
+    server_html: str
+    benchmark: str
+    benchmark_html: str
+
+
+@dataclass(frozen=True)
 class RunDetailView:
     run: RunView
+    recipes: tuple[RecipeCommandsView, ...]
     reproduction_command: str | None
     reproduction_command_html: str | None
     payload_json: str

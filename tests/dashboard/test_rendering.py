@@ -368,10 +368,17 @@ def test_run_detail_renders_full_configuration() -> None:
     assert "fedcba0" in response.text
     assert "Perf Data" in response.text
     assert "YAML Config" in response.text
+    assert "vLLM Recipe" in response.text
+    assert "Start the vLLM server" in response.text
+    assert "Run the benchmark" in response.text
+    assert "docker run --rm --device=/dev/kfd" in response.text
+    assert "vllm bench serve" in response.text
+    assert "--prefix-repetition-prefix-len" in response.text
     assert "Reproduce Results" in response.text
     assert "Extracted Data JSON" in response.text
     assert "On this page" in response.text
     assert 'href="#perf-data"' in response.text
+    assert 'href="#vllm-recipe"' in response.text
     assert 'href="#reproduce-results"' in response.text
     assert 'class="toc-emphasis"' in response.text
     assert "&#34;max_concurrency&#34;: 4" in response.text
@@ -390,6 +397,7 @@ def test_run_detail_renders_full_configuration() -> None:
         'id="summary"',
         'id="perf-data"',
         'id="yaml-config"',
+        'id="vllm-recipe"',
         'id="reproduce-results"',
         'id="extracted-data"',
     )
