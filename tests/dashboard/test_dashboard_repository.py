@@ -7,7 +7,7 @@ from local_vllm_dashboard.adapter import build_accuracy_bundle, build_performanc
 from local_vllm_dashboard.artifacts import artifact_contents
 from local_vllm_dashboard.container_revisions import ContainerRevisions
 from local_vllm_dashboard.dashboard.models import DashboardFilters
-from local_vllm_dashboard.dashboard.repository import DashboardRepository
+from local_vllm_dashboard.dashboard.repository import DashboardRepository, recipe_commands
 from local_vllm_dashboard.db import Base, BundleRepository, make_engine, make_session_factory
 
 FIXTURES = Path(__file__).parents[1] / "fixtures" / "perf_eval"
@@ -85,6 +85,117 @@ def test_repository_loads_all_dashboard_views() -> None:
     assert data.accuracy[0].fewshot == 5
 
 
+def test_recipe_commands_translate_perf_eval_configuration() -> None:
+    recipe = {
+        "gpu": "MI355X",
+        "num_gpus": 4,
+        "vllm": {
+            "model": "example-org/example-model",
+            "image": "example-registry/vllm-openai:test",
+            "env": {
+                "VLLM_ROCM_USE_AITER": 1,
+                "FEATURE_ENABLED": True,
+                "HF_HOME": "/models/huggingface cache",
+            },
+            "serve_args": "--tensor-parallel-size 4 --trust-remote-code",
+        },
+    }
+    configuration = {
+        "backend": "openai",
+        "dataset": "random",
+        "input_tokens": 1024,
+        "output_tokens": 512,
+        "num_prompts": 32,
+        "max_concurrency": 8,
+        "args": {
+            "num_warmups": 8,
+            "disable_tqdm": True,
+            "profile": False,
+            "request_rate": None,
+            "custom": ["one", "two"],
+        },
+    }
+
+    commands = recipe_commands(recipe, configuration)
+
+    assert commands is not None
+    assert commands.server == (
+        "docker run --rm --device=/dev/kfd --device=/dev/dri --security-opt seccomp=unconfined "
+        "--group-add video --privileged --ipc=host --ulimit nofile=65536:65536 \\\n"
+        "  -p 8000:8000 \\\n"
+        "  -e VLLM_ENGINE_READY_TIMEOUT_S=3600 \\\n"
+        "  -e VLLM_ROCM_USE_AITER=1 \\\n"
+        "  -e FEATURE_ENABLED=true \\\n"
+        "  -e 'HF_HOME=/models/huggingface cache' \\\n"
+        "  -v '/models/huggingface cache:/models/huggingface cache' \\\n"
+        "  example-registry/vllm-openai:test \\\n"
+        "  example-org/example-model \\\n"
+        "  --port 8000 \\\n"
+        "  --tensor-parallel-size 4 \\\n"
+        "  --trust-remote-code"
+    )
+    assert commands.benchmark == (
+        "vllm bench serve \\\n"
+        "  --backend openai \\\n"
+        "  --base-url http://127.0.0.1:8000 \\\n"
+        "  --model example-org/example-model \\\n"
+        "  --dataset-name random \\\n"
+        "  --num-prompts 32 \\\n"
+        "  --max-concurrency 8 \\\n"
+        "  --trust-remote-code \\\n"
+        "  --random-input-len 1024 \\\n"
+        "  --random-output-len 512 \\\n"
+        "  --ignore-eos \\\n"
+        "  --num-warmups 8 \\\n"
+        "  --disable-tqdm \\\n"
+        "  --custom one \\\n"
+        "  --custom two"
+    )
+
+
+def test_recipe_commands_translate_cuda_configuration() -> None:
+    commands = recipe_commands(
+        {
+            "gpu": "H200",
+            "vllm": {
+                "model": "example-org/model",
+                "image": "vllm/vllm-openai:nightly",
+            },
+        },
+        {
+            "dataset": "random",
+            "input_tokens": 16,
+            "output_tokens": 8,
+            "num_prompts": 4,
+            "max_concurrency": 2,
+        },
+    )
+
+    assert commands is not None
+    assert commands.server.startswith("docker run --rm --gpus all")
+    assert "--device=/dev/kfd" not in commands.server
+    assert "--host 127.0.0.1" in commands.benchmark
+    assert "--port 8000" in commands.benchmark
+
+
+def test_recipe_commands_reject_incomplete_recipes() -> None:
+    configuration = {
+        "dataset": "prefix_repetition",
+        "num_prompts": 32,
+        "max_concurrency": 8,
+    }
+
+    assert recipe_commands({}, configuration) is None
+    assert recipe_commands({"vllm": {"model": "model"}}, configuration) is None
+    assert (
+        recipe_commands(
+            {"vllm": {"model": "model", "image": "image", "runtime": "native"}},
+            configuration,
+        )
+        is None
+    )
+
+
 def test_repository_loads_full_run_detail() -> None:
     repository = dashboard_repository()
     bundle_id = repository.load().performance[0].bundle_id
@@ -94,6 +205,13 @@ def test_repository_loads_full_run_detail() -> None:
     assert detail is not None
     assert detail.run.bundle_id == bundle_id
     assert detail.run.dependency_revisions == (("aiter", "fedcba0"),)
+    assert len(detail.recipes) == 1
+    assert "docker run --rm --device=/dev/kfd" in detail.recipes[0].server
+    assert "example-registry/vllm-openai:test" in detail.recipes[0].server
+    assert "--enable-prefix-caching" in detail.recipes[0].server
+    assert "vllm bench serve" in detail.recipes[0].benchmark
+    assert "--dataset-name prefix_repetition" in detail.recipes[0].benchmark
+    assert "--prefix-repetition-prefix-len 40000" in detail.recipes[0].benchmark
     assert '"max_concurrency": 4' in detail.configuration_json[0]
     assert '"prefix_cache_tokens": 40000' in detail.configuration_json[0]
     assert len(detail.metrics[0]) > 1

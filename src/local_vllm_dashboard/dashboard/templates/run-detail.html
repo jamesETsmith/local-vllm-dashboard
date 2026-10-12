@@ -60,6 +60,26 @@
         </section>
       {% endfor %}
 
+      {% if detail.recipes %}
+        <div id="vllm-recipe" class="detail-section-heading">
+          <p class="eyebrow">Standalone commands</p>
+          <h2>vLLM Recipe</h2>
+          <p>Serve the model and rerun each recorded performance configuration without perf-eval.</p>
+        </div>
+        {% for recipe in detail.recipes %}
+          <section class="panel detail-card artifact-card">
+            <div class="section-heading"><div><p class="eyebrow">Step 1 · Observation {{ loop.index }}</p><h3>Start the vLLM server</h3></div><p>Run this command and wait for the health endpoint before starting the benchmark.</p></div>
+            <div class="code-toolbar"><span>Server command</span><button class="copy-button" type="button" data-copy-target="vllm-server-command-{{ loop.index }}">Copy to clipboard</button></div>
+            <pre id="vllm-server-command-{{ loop.index }}" class="highlighted-code" data-raw-code="vllm-server-command-raw-{{ loop.index }}"><code>{{ recipe.server_html|safe }}</code></pre>
+            <textarea id="vllm-server-command-raw-{{ loop.index }}" class="raw-code">{{ recipe.server }}</textarea>
+            <div class="section-heading recipe-step"><div><p class="eyebrow">Step 2 · Observation {{ loop.index }}</p><h3>Run the benchmark</h3></div><p>Run from an environment with the matching vLLM version after the server is healthy.</p></div>
+            <div class="code-toolbar"><span>Benchmark command</span><button class="copy-button" type="button" data-copy-target="vllm-benchmark-command-{{ loop.index }}">Copy to clipboard</button></div>
+            <pre id="vllm-benchmark-command-{{ loop.index }}" class="highlighted-code" data-raw-code="vllm-benchmark-command-raw-{{ loop.index }}"><code>{{ recipe.benchmark_html|safe }}</code></pre>
+            <textarea id="vllm-benchmark-command-raw-{{ loop.index }}" class="raw-code">{{ recipe.benchmark }}</textarea>
+          </section>
+        {% endfor %}
+      {% endif %}
+
       <div id="reproduce-results" class="detail-section-heading">
         <p class="eyebrow">perf-eval</p>
         <h2>Reproduce Results</h2>
@@ -91,6 +111,7 @@
         <details><summary>Show canonical JSON</summary><pre class="highlighted-code"><code>{{ detail.payload_json_html|safe }}</code></pre></details>
       </section>
       <script src="{{ request.scope.get('root_path', '') }}/static/copy-code.js" defer></script>
+      <script src="{{ request.scope.get('root_path', '') }}/static/detail-navigation.js" defer></script>
       </main>
       <aside class="detail-toc" aria-label="On this page">
         <p>On this page</p>
@@ -98,7 +119,8 @@
           <a href="#summary">Summary</a>
           <a href="#perf-data">Perf Data</a>
           <a href="#yaml-config">YAML Config</a>
-          <a class="toc-emphasis" href="#reproduce-results">Reproduce Results</a>
+          {% if detail.recipes %}<a class="toc-emphasis" href="#vllm-recipe">vLLM Recipe</a>{% endif %}
+          <a href="#reproduce-results">Reproduce Results</a>
           <a href="#extracted-data">Extracted Data JSON</a>
         </nav>
       </aside>
