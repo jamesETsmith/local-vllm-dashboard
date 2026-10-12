@@ -361,6 +361,7 @@ def test_run_detail_renders_full_configuration() -> None:
         marker = 'data-href="/dashboard/runs/'
         bundle_id = dashboard.text.split(marker, 1)[1].split('"', 1)[0]
         response = client.get(f"/dashboard/runs/{bundle_id}")
+        detail_navigation = client.get("/dashboard/static/detail-navigation.js")
 
     assert response.status_code == 200
     assert "Run provenance" in response.text
@@ -393,6 +394,10 @@ def test_run_detail_renders_full_configuration() -> None:
     assert "Copy to clipboard" in response.text
     assert "highlighted-code" in response.text
     assert "copy-code.js" in response.text
+    assert "detail-navigation.js" in response.text
+    assert detail_navigation.status_code == 200
+    assert "IntersectionObserver" in detail_navigation.text
+    assert 'setAttribute("aria-current", "location")' in detail_navigation.text
     ordered_sections = (
         'id="summary"',
         'id="perf-data"',
