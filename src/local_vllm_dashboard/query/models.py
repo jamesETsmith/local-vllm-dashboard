@@ -63,5 +63,38 @@ class ConfigurationFilterOptions(QueryModel):
     precisions: tuple[str, ...]
 
 
+class ReproductionArtifact(QueryModel):
+    path: str
+    role: str
+    media_type: str
+    size_bytes: int
+    digest: str
+    content: str
+
+
+class ReproductionRun(QueryModel):
+    bundle_id: UUID
+    workload: str
+    model: str
+    hardware: str
+    completed_at: datetime
+    vllm_image: str | None
+    vllm_commit: str | None
+    dependency_revisions: tuple[tuple[str, str], ...] = ()
+
+
+class ReproductionRecipe(QueryModel):
+    observation_id: str
+    server_command: str
+    benchmark_command: str
+
+
+class ReproductionResult(QueryModel):
+    run: ReproductionRun
+    perf_eval_command: str | None
+    recipes: tuple[ReproductionRecipe, ...] = ()
+    artifacts: tuple[ReproductionArtifact, ...] = ()
+
+
 PageLimit = Annotated[int, Field(ge=1, le=100)]
 PageOffset = Annotated[int, Field(ge=0)]

@@ -1,6 +1,7 @@
 from typing import Annotated
+from uuid import UUID
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query, status
 
 from local_vllm_dashboard.query.models import (
     ConfigurationFilterOptions,
@@ -8,6 +9,7 @@ from local_vllm_dashboard.query.models import (
     ConfigurationPage,
     PageLimit,
     PageOffset,
+    ReproductionResult,
 )
 from local_vllm_dashboard.query.service import QueryService
 
@@ -44,5 +46,15 @@ def create_query_router(service: QueryService) -> APIRouter:
     @router.get("/configuration-filters", response_model=ConfigurationFilterOptions)
     def configuration_filters() -> ConfigurationFilterOptions:
         return service.configuration_filters()
+
+    @router.get(
+        "/configurations/{bundle_id}/reproduction",
+        response_model=ReproductionResult,
+    )
+    def reproduction(bundle_id: UUID) -> ReproductionResult:
+        result = service.reproduction(bundle_id)
+        if result is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "bundle not found")
+        return result
 
     return router

@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from starlette.applications import Starlette
@@ -58,6 +60,18 @@ def create_mcp_server(
     def list_configuration_filters() -> dict[str, object]:
         """List available values for benchmark configuration filters."""
         return service.configuration_filters().model_dump(mode="json")
+
+    @server.tool()
+    def get_reproduction(bundle_id: str) -> dict[str, object]:
+        """Get stored workload recipes, result artifacts, and ready-to-run commands.
+
+        Pass the bundle_id reported by a configuration search to reproduce that
+        benchmark result.
+        """
+        result = service.reproduction(UUID(bundle_id))
+        if result is None:
+            return {"error": f"bundle not found: {bundle_id}"}
+        return result.model_dump(mode="json")
 
     return server
 

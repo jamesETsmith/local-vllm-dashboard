@@ -50,6 +50,20 @@ uv run local-vllm-dashboard serve \
 
 The dashboard and query interfaces are readable without application-layer authentication. Writes require the token. Restrict read access with the deployment network, reverse proxy, or an external authentication layer. Keep the `.env` file private and reuse the same token across service restarts.
 
+### Reproducing a result
+
+Install the client on the repro host, then download the stored workload recipe, original result files, and commands for a run:
+
+```bash
+uv tool install "git+https://github.com/jamesETsmith/local-vllm-dashboard"
+local-vllm-dashboard reproduce \
+  --endpoint <BASE_URL> \
+  --bundle-id <BUNDLE_ID> \
+  --output ./reproduction
+```
+
+The Help tab and `/llms.txt` cover the full workflow, including installing [perf-eval](https://github.com/vllm-project/perf-eval) and running the workload with `./lib/run.sh`.
+
 The same Uvicorn process also serves machine-readable query interfaces:
 
 ```text

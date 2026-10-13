@@ -2,15 +2,53 @@
 
 The dashboard provides human-readable comparisons and machine-readable access to the same standardized benchmark results. Replace `{base_url}` with the address of this deployment, without a trailing slash.
 
-## For people
+## Install the client
 
-- **Performance** compares configurations within each model. Use the X-axis and Y-axis menus to choose total token throughput, output token throughput, TTFT, or TPOT vertically, and concurrency, P50 interactivity, or P99 interactivity horizontally. Throughput is normalized per GPU. Interactivity is output tokens divided by the matching end-to-end latency percentile and is measured in output tokens per second per user; results without the required token count and latency metric are omitted from that view.
-- **Accuracy** shows task scores with the task configuration beside each result.
-- Performance, Accuracy, and Raw Data Table default to results completed in the last four weeks. Use the inclusive **From** and **Through** fields to change the range, or clear both fields to show all dates.
-- **Raw Data Table** exposes flattened performance observations and downloads the current filter selection as CSV. Its row search matches every entered term against displayed values, model, hardware, precision, TP/DP/EP settings, canonical configuration fields, benchmark `args`, and vLLM serve arguments.
-- **Custom Comparison** lets you select performance results across models and configurations, choose a bar or line chart, then plot one throughput or latency metric on a shared graph. Its config filter searches model, hardware, precision, TP/DP/EP settings, canonical configuration fields, benchmark `args`, and vLLM serve arguments. For historical results, both searches recover those arguments from the stored workload YAML without changing the accepted canonical observation.
-- Select a chart point, comparison bar, or table row to inspect full configuration, provenance, dependency revisions, and stored source artifacts.
-- **Upload results** accepts a packaged archive or matching workload YAML and result JSON files. Uploading requires the ingestion token.
+Everything needed to publish or reproduce results is in the `local-vllm-dashboard` client. Install it once on a benchmark or repro host:
+
+```bash
+uv tool install "git+https://github.com/jamesETsmith/local-vllm-dashboard"
+```
+
+Then run commands with `local-vllm-dashboard ...`, or use `uvx --from git+https://github.com/jamesETsmith/local-vllm-dashboard local-vllm-dashboard ...` for a one-off run without installing.
+
+## Reproducing a result
+
+Every stored result keeps the exact perf-eval workload YAML and the original benchmark result JSON used to produce it. To rebuild a run, install perf-eval, download the repro bundle, then run it.
+
+### 1. Install perf-eval
+
+Clone [perf-eval](https://github.com/vllm-project/perf-eval) onto a GPU host with Docker and vLLM available:
+
+```bash
+git clone https://github.com/vllm-project/perf-eval
+cd perf-eval
+```
+
+### 2. Download the repro bundle
+
+Select a row or chart point in the dashboard and copy the command under **Reproduce Results**, or use the run's `bundle_id`:
+
+```bash
+local-vllm-dashboard reproduce \
+  --endpoint {base_url} \
+  --bundle-id <BUNDLE_ID> \
+  --output ./reproduction
+```
+
+This writes the workload YAML, the original result JSON, and a `reproduction.json` summary into `./reproduction`.
+
+### 3. Run the workload
+
+Copy the workload YAML into the perf-eval `workloads/` directory and run it from the perf-eval root:
+
+```bash
+cp ./reproduction/<workload>.yaml perf-eval/workloads/
+cd perf-eval
+./lib/run.sh workloads/<workload>.yaml
+```
+
+`./lib/run.sh` starts the vLLM server from the recipe's image, runs the benchmark and accuracy tasks, and writes `results/<name>/`. Compare the new raw JSON against the original result saved in the repro bundle.
 
 ## For agents
 
@@ -22,7 +60,32 @@ MCP endpoint:
 {base_url}/mcp/
 ```
 
-The MCP server describes its own tools and schemas after a client connects. It currently supports configuration search and discovery of available filter values.
+The MCP server describes its own tools and schemas after a client connects. It supports configuration search, discovery of available filter values, and retrieval of stored reproduction recipes and commands for a given bundle.
+
+### Reproducing results
+
+To reproduce a stored result, search for its configuration, then fetch the reproduction bundle by `bundle_id`. The response contains the exact stored workload YAML and original result JSON, plus ready-to-run commands.
+
+Use the MCP tool `get_reproduction`:
+
+```json
+{ "bundle_id": "<BUNDLE_ID>" }
+```
+
+Or call the REST endpoint directly:
+
+```text
+GET {base_url}/api/v1/configurations/{bundle_id}/reproduction
+```
+
+Each response includes:
+
+- `run`: bundle id, workload name, model, hardware, vLLM image and commit, and dependency revisions.
+- `artifacts`: the workload recipe and raw result files with their content, media type, and digest.
+- `perf_eval_command`: the perf-eval invocation, for example `./lib/run.sh <workload>.yaml`.
+- `recipes`: per-configuration `docker run` server and `vllm bench serve` benchmark commands.
+
+Write `artifacts` to disk and run `perf_eval_command` after installing [perf-eval](https://github.com/vllm-project/perf-eval), or use the `local-vllm-dashboard reproduce` command described under **Reproducing a result**.
 
 ### Crush
 
@@ -94,6 +157,12 @@ Discover valid filter values:
 
 ```text
 GET {base_url}/api/v1/configuration-filters
+```
+
+Fetch the stored workload recipe, original result artifacts, and ready-to-run commands for a single result:
+
+```text
+GET {base_url}/api/v1/configurations/{bundle_id}/reproduction
 ```
 
 Agents that can read OpenAPI should use `{base_url}/openapi.json` as the authoritative endpoint and response contract instead of relying on examples in prose.

@@ -1,4 +1,4 @@
-const tocLinks = [...document.querySelectorAll('.detail-toc a[href^="#"]')];
+const tocLinks = [...document.querySelectorAll('.detail-toc a[href^="#"], .help-toc a[href^="#"]')];
 const sections = tocLinks
   .map((link) => document.getElementById(link.hash.slice(1)))
   .filter(Boolean);

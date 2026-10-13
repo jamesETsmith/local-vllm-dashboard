@@ -32,6 +32,25 @@ def test_unified_cli_exposes_initialized_server_startup() -> None:
     assert args.public_url == "http://192.0.2.10:8010"
 
 
+def test_unified_cli_exposes_reproduction_retrieval() -> None:
+    args = build_parser().parse_args(
+        [
+            "reproduce",
+            "--bundle-id",
+            "018f4d6a-4c1f-7c7a-98cf-3b5c7cef3d1a",
+            "--endpoint",
+            "http://192.0.2.10:8010",
+            "--output",
+            "./reproduction",
+        ]
+    )
+
+    assert args.command == "reproduce"
+    assert args.bundle_id == "018f4d6a-4c1f-7c7a-98cf-3b5c7cef3d1a"
+    assert args.endpoint == "http://192.0.2.10:8010"
+    assert args.output == Path("./reproduction")
+
+
 def test_serve_initializes_database_before_starting_server(monkeypatch) -> None:
     monkeypatch.setenv("DASHBOARD_DATABASE_URL", "sqlite+pysqlite:///:memory:")
     monkeypatch.setenv("DASHBOARD_INGEST_TOKEN", "test-token")

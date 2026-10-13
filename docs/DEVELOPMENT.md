@@ -53,3 +53,14 @@ uv run local-vllm-dashboard publish \
   --artifact bench.json \
   --endpoint http://localhost:8000
 ```
+
+Download a stored run's workload YAML, original result files, and ready-to-run commands from a running service:
+
+```text
+uv run local-vllm-dashboard reproduce \
+  --endpoint http://localhost:8000 \
+  --bundle-id <BUNDLE_ID> \
+  --output ./reproduction
+```
+
+The same data is available as the read-only `GET /api/v1/configurations/{bundle_id}/reproduction` endpoint and the `get_reproduction` MCP tool.
