@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from sqlalchemy.orm import Session, sessionmaker
 
 from local_vllm_dashboard.dashboard.models import DashboardFilters
@@ -7,6 +9,10 @@ from local_vllm_dashboard.query.models import (
     ConfigurationFilters,
     ConfigurationPage,
     ConfigurationResult,
+    ReproductionArtifact,
+    ReproductionRecipe,
+    ReproductionResult,
+    ReproductionRun,
 )
 
 
@@ -59,4 +65,42 @@ class QueryService:
             prefix_cache_tokens=options.prefix_cache_tokens,
             concurrencies=options.concurrencies,
             precisions=options.precisions,
+        )
+
+    def reproduction(self, bundle_id: UUID) -> ReproductionResult | None:
+        with self.session_factory() as session:
+            detail = DashboardRepository(session).detail(bundle_id)
+        if detail is None:
+            return None
+        return ReproductionResult(
+            run=ReproductionRun(
+                bundle_id=detail.run.bundle_id,
+                workload=detail.run.workload,
+                model=detail.run.model,
+                hardware=detail.run.hardware,
+                completed_at=detail.run.completed_at,
+                vllm_image=detail.run.vllm_image,
+                vllm_commit=detail.run.vllm_commit,
+                dependency_revisions=detail.run.dependency_revisions,
+            ),
+            perf_eval_command=detail.reproduction_command,
+            recipes=tuple(
+                ReproductionRecipe(
+                    observation_id=recipe.observation_id,
+                    server_command=recipe.server,
+                    benchmark_command=recipe.benchmark,
+                )
+                for recipe in detail.recipes
+            ),
+            artifacts=tuple(
+                ReproductionArtifact(
+                    path=artifact.path,
+                    role=artifact.role,
+                    media_type=artifact.media_type,
+                    size_bytes=artifact.size_bytes,
+                    digest=artifact.digest,
+                    content=artifact.raw_text,
+                )
+                for artifact in detail.artifacts
+            ),
         )

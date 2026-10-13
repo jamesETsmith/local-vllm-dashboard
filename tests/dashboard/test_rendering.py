@@ -94,11 +94,19 @@ def test_help_and_agent_instructions_share_usage_documentation() -> None:
         dashboard = client.get("/dashboard/")
         help_page = client.get("/dashboard/help")
         agent_guide = client.get("/llms.txt")
+        detail_navigation = client.get("/dashboard/static/detail-navigation.js")
 
     assert 'href="/dashboard/help"' in dashboard.text
     assert help_page.status_code == 200
-    assert "For people" in help_page.text
     assert "For agents" in help_page.text
+    assert "Reproducing results" in help_page.text
+    assert "get_reproduction" in help_page.text
+    assert "bundle_id" in help_page.text
+    assert "Install the client" in help_page.text
+    assert "Reproducing a result" in help_page.text
+    assert "uv tool install" in help_page.text
+    assert "git clone https://github.com/vllm-project/perf-eval" in help_page.text
+    assert "local-vllm-dashboard reproduce" in help_page.text
     assert "Crush" in help_page.text
     assert "Cursor" in help_page.text
     assert "Claude Code" in help_page.text
@@ -106,9 +114,14 @@ def test_help_and_agent_instructions_share_usage_documentation() -> None:
     assert "http://testserver/openapi.json" in help_page.text
     assert "Discovery and source of truth" not in help_page.text
     assert 'class="help-toc"' in help_page.text
-    assert 'href="#for-people"' in help_page.text
     assert 'href="#for-agents"' in help_page.text
     assert 'href="#rest-api"' in help_page.text
+    assert "detail-navigation.js" in help_page.text
+    assert 'class="help-toc" aria-label="Help page contents"' in help_page.text
+    assert "On this page" in help_page.text
+    assert detail_navigation.status_code == 200
+    assert '.detail-toc a[href^="#"], .help-toc a[href^="#"]' in detail_navigation.text
+    assert 'setAttribute("aria-current", "location")' in detail_navigation.text
     assert agent_guide.status_code == 200
     assert agent_guide.headers["content-type"].startswith("text/plain")
     assert "# Using the vLLM Results Dashboard" in agent_guide.text
@@ -376,6 +389,10 @@ def test_run_detail_renders_full_configuration() -> None:
     assert "vllm bench serve" in response.text
     assert "--prefix-repetition-prefix-len" in response.text
     assert "Reproduce Results" in response.text
+    assert "Download the repro bundle" in response.text
+    assert "uvx" in response.text
+    assert "reproduce" in response.text
+    assert "--bundle-id" in response.text
     assert "Extracted Data JSON" in response.text
     assert "On this page" in response.text
     assert 'href="#perf-data"' in response.text

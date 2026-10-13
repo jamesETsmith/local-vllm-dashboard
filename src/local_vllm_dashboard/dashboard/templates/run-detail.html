@@ -83,13 +83,20 @@
       <div id="reproduce-results" class="detail-section-heading">
         <p class="eyebrow">perf-eval</p>
         <h2>Reproduce Results</h2>
-        <p>Copy the perf-eval workload into a checkout and run the command shown below.</p>
+        <p>Download the workload YAML and original result files, then run the command shown below from a <a href="{{ request.scope.get('root_path', '') }}/help#reproducing-a-result">perf-eval checkout</a>.</p>
       </div>
-      {% if detail.reproduction_command %}
+      {% if detail.reproduction_command or reproduction_download_command_html %}
         <section class="panel detail-card artifact-card">
-          <div class="section-heading"><div><p class="eyebrow">Shell command</p><h3>Run with perf-eval</h3></div><p>Run from the perf-eval repository root after saving the YAML at its shown path.</p></div>
-          <div class="code-toolbar"><span>Command</span><button class="copy-button" type="button" data-copy-target="reproduction-command">Copy to clipboard</button></div>
-          <pre id="reproduction-command" class="highlighted-code"><code>{{ detail.reproduction_command_html|safe }}</code></pre>
+          <div class="section-heading"><div><p class="eyebrow">Step 1</p><h3>Download the repro bundle</h3></div><p>Writes the workload YAML, original result JSON, and a reproduction.json summary into a local directory.</p></div>
+          {% if reproduction_download_command_html %}
+            <div class="code-toolbar"><span>Download command</span><button class="copy-button" type="button" data-copy-target="reproduction-download-command">Copy to clipboard</button></div>
+            <pre id="reproduction-download-command" class="highlighted-code"><code>{{ reproduction_download_command_html|safe }}</code></pre>
+          {% endif %}
+          <div class="section-heading recipe-step"><div><p class="eyebrow">Step 2</p><h3>Run with perf-eval</h3></div><p>Run from the perf-eval repository root after copying the YAML into its workloads directory.</p></div>
+          {% if detail.reproduction_command %}
+            <div class="code-toolbar"><span>Command</span><button class="copy-button" type="button" data-copy-target="reproduction-command">Copy to clipboard</button></div>
+            <pre id="reproduction-command" class="highlighted-code"><code>{{ detail.reproduction_command_html|safe }}</code></pre>
+          {% endif %}
         </section>
       {% endif %}
 

@@ -134,11 +134,13 @@ class SourceArtifactView:
     size_bytes: int
     digest: str
     text: str
+    raw_text: str
     highlighted_html: str
 
 
 @dataclass(frozen=True)
 class RecipeCommandsView:
+    observation_id: str
     server: str
     server_html: str
     benchmark: str

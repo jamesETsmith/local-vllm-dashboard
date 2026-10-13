@@ -16,6 +16,11 @@ from local_vllm_dashboard.db import initialize_schema, make_engine
 from local_vllm_dashboard.ingest_directory import ingest_directories, render_report
 from local_vllm_dashboard.package_results import create_results_archive
 from local_vllm_dashboard.publisher import Publisher
+from local_vllm_dashboard.reproduce import (
+    fetch_reproduction,
+    render_reproduction,
+    write_reproduction,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -51,6 +56,11 @@ def build_parser() -> argparse.ArgumentParser:
     package_results.add_argument("--results-dir", type=Path, required=True)
     package_results.add_argument("--output", type=Path, required=True)
     package_results.add_argument("--container")
+
+    reproduce = commands.add_parser("reproduce")
+    reproduce.add_argument("--bundle-id", required=True)
+    reproduce.add_argument("--endpoint", required=True)
+    reproduce.add_argument("--output", type=Path, default=Path("reproduction"))
 
     commands.add_parser("init-db")
 
@@ -119,6 +129,12 @@ def main() -> None:
             f"\nCreated {summary.archive} with {summary.workloads} workload(s), "
             f"{summary.results} result(s), and {summary.revisions} revision record(s)"
         )
+        return
+    if args.command == "reproduce":
+        reproduction = fetch_reproduction(args.endpoint, args.bundle_id)
+        written = write_reproduction(reproduction, args.output)
+        print(render_reproduction(reproduction, args.output))
+        print(f"\nWrote {len(written)} file(s) to {args.output}")
         return
     if args.command == "adapt-perf":
         bundle = build_performance_bundle(args.recipe, args.result)

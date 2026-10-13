@@ -285,6 +285,7 @@ def recipe_commands(
     server = shell_command(server_lines)
     benchmark = shell_command(benchmark_lines)
     return RecipeCommandsView(
+        observation_id=str(configuration.get("name") or "configuration"),
         server=server,
         server_html=highlight(server, BashLexer(), HtmlFormatter(nowrap=True)),
         benchmark=benchmark,
@@ -480,6 +481,7 @@ class DashboardRepository:
                         artifact.content.decode("utf-8"),
                         artifact.media_type,
                     ),
+                    raw_text=artifact.content.decode("utf-8"),
                     highlighted_html=highlighted(
                         pretty_artifact(
                             artifact.content.decode("utf-8"),

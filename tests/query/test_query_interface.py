@@ -103,16 +103,49 @@ def test_mcp_exposes_shared_configuration_queries() -> None:
         _, filter_result = await server.call_tool("list_configuration_filters", {})
         page = cast(dict[str, Any], page_result)
         filters = cast(dict[str, Any], filter_result)
+        _, reproduction_result = await server.call_tool(
+            "get_reproduction",
+            {"bundle_id": page["items"][0]["bundle_id"]},
+        )
+        reproduction = cast(dict[str, Any], reproduction_result)
 
         assert {tool.name for tool in tools} == {
+            "get_reproduction",
             "list_configuration_filters",
             "search_configurations",
         }
         assert page["total"] == 1
         assert page["items"][0]["hardware"] == "MI355X"
         assert filters["hardware"] == ["MI355X"]
+        assert reproduction["run"]["workload"] == "prefix-cache-performance-mi355x"
+        assert reproduction["perf_eval_command"] == "./lib/run.sh prefix_cache_workload.yaml"
+        assert reproduction["recipes"][0]["server_command"].startswith("docker run")
+        assert reproduction["artifacts"][0]["content"]
 
     anyio.run(query_mcp)
+
+
+def test_query_api_returns_reproduction_for_a_bundle() -> None:
+    with query_client() as client:
+        page = client.get("/api/v1/configurations", params={"hardware": "MI355X"}).json()
+        bundle_id = page["items"][0]["bundle_id"]
+        response = client.get(f"/api/v1/configurations/{bundle_id}/reproduction")
+        missing = client.get(
+            "/api/v1/configurations/00000000-0000-0000-0000-000000000000/reproduction"
+        )
+        schema = client.get("/openapi.json")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["run"]["bundle_id"] == bundle_id
+    assert body["run"]["model"] == "example-org/example-model"
+    assert body["perf_eval_command"] == "./lib/run.sh prefix_cache_workload.yaml"
+    assert body["recipes"][0]["benchmark_command"].startswith("vllm bench serve")
+    workload = next(item for item in body["artifacts"] if item["role"] == "workload_recipe")
+    assert workload["path"] == "prefix_cache_workload.yaml"
+    assert workload["content"].startswith("name: prefix-cache-performance-mi355x")
+    assert missing.status_code == 404
+    assert "/api/v1/configurations/{bundle_id}/reproduction" in schema.json()["paths"]
 
 
 def test_public_url_adds_mcp_host_and_origin_allowances() -> None:

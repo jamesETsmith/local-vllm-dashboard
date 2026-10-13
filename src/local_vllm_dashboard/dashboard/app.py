@@ -10,6 +10,9 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from pygments import highlight
+from pygments.formatters.html import HtmlFormatter
+from pygments.lexers.shell import BashLexer
 from sqlalchemy.orm import Session, sessionmaker
 
 from local_vllm_dashboard.dashboard.chart import chart_json_data, performance_chart
@@ -231,6 +234,22 @@ def create_dashboard_app(
         detail = DashboardRepository(session).detail(bundle_id)
         if detail is None:
             raise HTTPException(status_code=404, detail="run not found")
-        return TEMPLATES.TemplateResponse(request, "run-detail.html", {"detail": detail})
+        base_url = public_url or str(request.base_url).rstrip("/")
+        download_command = (
+            f"uvx local-vllm-dashboard reproduce --endpoint {base_url} "
+            f"--bundle-id {bundle_id} --output ./reproduction"
+        )
+        return TEMPLATES.TemplateResponse(
+            request,
+            "run-detail.html",
+            {
+                "detail": detail,
+                "reproduction_download_command_html": highlight(
+                    download_command,
+                    BashLexer(),
+                    HtmlFormatter(nowrap=True),
+                ),
+            },
+        )
 
     return app
